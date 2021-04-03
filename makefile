@@ -8,7 +8,7 @@ else
 endif
 CXXFLAGS += -std=c++11
 
-server: *.cpp
+server: *.cc ./http/*.cc 
 	$(CXX) -o server.o  $^ $(CXXFLAGS) 
 
 clean:

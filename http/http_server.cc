@@ -8,7 +8,7 @@
 #include <stdlib.h>
 
 #include "http_server.h"
-#include "utils.h"
+#include "../log/log.h"
 #include "Signal.h"
 #include "sigchildwait.h"
 
@@ -40,13 +40,13 @@ void HttpServer::Run()
 {
     pid_t child_pid;
     int connfd;
-    
+
     if (is_run)
     {
         Log("http server is running");
         return;
     }
-    
+
     is_run = true;
 
     void sig_chld(int);
@@ -57,7 +57,8 @@ void HttpServer::Run()
         sockaddr_in addr_client;
         socklen_t addr_client_len;
         connfd = accept(server_listen_socket, (sockaddr *)&addr_client, &addr_client_len);
-        if(errno == EINTR){
+        if (errno == EINTR)
+        {
             continue;
         }
         if ((child_pid = fork()) == 0)
