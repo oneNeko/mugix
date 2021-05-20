@@ -6,13 +6,14 @@
 int main(int argc, char *argv[])
 {
 	// 命令行解析
-	Config config;
-	config.parse_config(argc, argv);
-	
+	auto instance = Config::get_instance();
+	instance->parse_config(argc, argv);
+
 	HttpServer server;
 
 	// 初始化
-	if(server.Start(config.PORT)){
+	if (server.Start(instance->PORT))
+	{
 		server.Run();
 	}
 	return 0;

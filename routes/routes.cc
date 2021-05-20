@@ -1,6 +1,7 @@
 #include "../utils/utils.h"
 #include "../log/log.h"
 #include "routes.h"
+#include "../config/config.h"
 
 std::string ROUTES::process_requests(std::string request_text)
 {
@@ -18,7 +19,16 @@ std::string ROUTES::process_requests(std::string request_text)
     HTTP_REQUEST_HEADER header;
     int res = parse_request_header(str_request_header, header);
 
-    return make_response(200, header.abs_path);
+    if (header.abs_path == "/")
+    {
+        return make_response("index.html");
+    }
+    else if (header.abs_path == "/test")
+    {
+        return make_response(200, "test");
+    }
+
+    return make_response(404, "404");
 }
 
 int ROUTES::parse_request_header(std::string str_request_header, HTTP_REQUEST_HEADER &header)
@@ -122,4 +132,29 @@ std::string ROUTES::make_response(int status_code, std::string message)
     rmsg += "\r\n\r\n";
     rmsg += message;
     return rmsg;
+}
+
+std::string ROUTES::make_response(std::string file_path)
+{
+    auto instance = Config::get_instance();
+    auto path = instance->DIR_PATH + file_path;
+
+    Log(path);
+
+    if (IsFileExists(path))
+    {
+        if (IsFileRead(path))
+        {
+            
+            return make_response(200, ReadFile(path));
+        }
+        else
+        {
+            return make_response(403, "403");
+        }
+    }
+    else
+    {
+        return make_response(404, "404");
+    }
 }

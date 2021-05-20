@@ -11,6 +11,7 @@ class ROUTES
 private:
     int parse_request_header(std::string request_header, HTTP_REQUEST_HEADER &header);
     std::string make_response(int status_code, std::string message);
+    std::string make_response(std::string file_path);
     std::string get_str_http_status(int status_code);
 
 public:

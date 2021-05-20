@@ -5,8 +5,11 @@
 
 class Config
 {
-public:
+private:
     Config();
+
+public:
+    static Config *get_instance();
     ~Config();
 
     void parse_config(int agrc, char *argv[]);

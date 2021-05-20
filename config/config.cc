@@ -3,7 +3,7 @@
 
 #include "config.h"
 
-Config::Config() : PORT(50001)
+Config::Config() : PORT(50001),DIR_PATH("/home/neko/cpp/nekoServer/html/")
 {
 }
 
@@ -26,9 +26,19 @@ void Config::parse_config(int argc, char *argv[])
         }
         case 'd':
         {
-            DIR_PATH=optarg;
+            DIR_PATH = optarg;
             break;
         }
         }
     }
+}
+
+Config *Config::get_instance()
+{
+    static Config *instance;
+    if (instance == NULL)
+    {
+        instance = new Config();
+    }
+    return instance;
 }
