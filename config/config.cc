@@ -14,7 +14,7 @@ Config::~Config()
 void Config::parse_config(int argc, char *argv[])
 {
     int opt;
-    const char *str = "p:";
+    const char *str = "p:d:";
     while ((opt = getopt(argc, argv, str)) != -1)
     {
         switch (opt)
@@ -22,6 +22,11 @@ void Config::parse_config(int argc, char *argv[])
         case 'p':
         {
             PORT = atoi(optarg);
+            break;
+        }
+        case 'd':
+        {
+            DIR_PATH=optarg;
             break;
         }
         }

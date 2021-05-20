@@ -1,3 +1,4 @@
+#include <iostream>
 #include <string>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -8,12 +9,12 @@
 #include <stdlib.h>
 
 #include "http_server.h"
-#include "../log/log.h"
 #include "Signal.h"
 #include "sigchildwait.h"
 
-#include <iostream>
-using namespace std;
+#include "../log/log.h"
+#include "../routes/routes.h"
+
 
 HttpServer::HttpServer() : server_port(50001), is_run(false)
 {
@@ -32,7 +33,7 @@ bool HttpServer::Start(int port)
         Log("http server init failed");
         return false;
     }
-    Log("Init finshed");
+    Log("Init successed");
     return true;
 }
 
@@ -91,6 +92,11 @@ bool HttpServer::Init()
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
     int ret = bind(server_listen_socket, (sockaddr *)&addr, sizeof(addr));
+    if (ret != 0)
+    {
+        Log("Bind error!");
+        return false;
+    }
 
     ret = listen(server_listen_socket, 1000);
 
@@ -110,29 +116,16 @@ void HttpServer::ChildSocketProcess(int socket_fd)
         }
         buf[res] = '\0';
         Log(buf);
-        std::string response_str = ProcessResponse("hello world!");
-        send(socket_fd, response_str.c_str(), response_str.size(), 0);
+
+        //处理http请求
+        ROUTES route;
+        auto response_text=route.process_requests(buf);
+
+        //响应http请求
+        send(socket_fd, response_text.c_str(), response_text.size(), 0);
+
         break;
 
     } while (res != 0 && res != -1);
     close(socket_fd);
-}
-
-std::string HttpServer::ProcessRequest()
-{
-    return "";
-}
-
-std::string HttpServer::ProcessResponse(std::string response)
-{
-    std::string rmsg = "";
-    rmsg = "HTTP/1.1 200 OK\r\n";
-    rmsg += "Server: xHttp\r\n";
-    rmsg += "Content-Type: text/html;charset=utf-8\r\n";
-    rmsg += "Content-Length: ";
-    rmsg += std::to_string(response.size());
-    //rmsg += "\r\n";
-    rmsg += "\r\n\r\n";
-    rmsg += response;
-    return rmsg;
 }
