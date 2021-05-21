@@ -1,4 +1,6 @@
 #include <iostream>
+#include <arpa/inet.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
@@ -12,7 +14,6 @@
 
 #include "../log/log.h"
 #include "../routes/routes.h"
-
 
 HttpServer::HttpServer() : server_port(50001), is_run(false)
 {
@@ -113,12 +114,17 @@ void HttpServer::ChildSocketProcess(int socket_fd)
             break;
         }
         buf[res] = '\0';
-        Log(buf);
+
+        struct sockaddr_in connectedAddr;
+        socklen_t connectedAddrLen = sizeof(connectedAddr);
+        getpeername(socket_fd, (struct sockaddr *)&connectedAddr, &connectedAddrLen);
+        Log("new client! ipaddress: " + std::string(inet_ntoa(connectedAddr.sin_addr)) +":"+ std::to_string(ntohs(connectedAddr.sin_port)));
 
         //处理http请求
         ROUTES route;
-        auto response_text=route.process_requests(buf);
+        auto response_text = route.process_requests(buf);
 
+        Log(response_text);
         //响应http请求
         send(socket_fd, response_text.c_str(), response_text.size(), 0);
 

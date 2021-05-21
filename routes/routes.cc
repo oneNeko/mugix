@@ -5,11 +5,14 @@
 
 std::string ROUTES::process_requests(std::string request_text)
 {
+    //Log(request_text);
+
     int pos = int(request_text.find_first_of("\r\n\r\n"));
     // 非法请求
     if (pos == -1)
     {
-        return "invaild request";
+        Log("Bad Request");
+        return make_response("Bad Request", 400);
     }
 
     auto str_request_header = request_text.substr(0, pos);
@@ -115,6 +118,8 @@ std::string ROUTES::make_response(HTTP_RESPONSE response)
     std::string str_header = "";
     std::string str_body = response.body;
 
+    Log(std::to_string(response.header.response_code));
+    Log(get_str_status_code(response.header.response_code));
     //构建响应头
     str_header = response.header.http_protocol + " " + get_str_status_code(response.header.response_code) + "\r\n";
     for (auto iter : response.header.header_params)
@@ -146,12 +151,13 @@ std::string ROUTES::make_response(std::string str, HTTP_RESPONSE_HEADER header, 
     auto instance = Config::get_instance();
     auto path = instance->DIR_PATH + str;
 
-    Log(path);
+    Log("filepath: " + path);
 
     if (IsFileExists(path))
     {
         if (IsFileRead(path))
         {
+            Log("read file");
             int pos = int(path.find_last_of('.'));
             if (pos == -1)
             {
@@ -159,7 +165,8 @@ std::string ROUTES::make_response(std::string str, HTTP_RESPONSE_HEADER header, 
             }
             else
             {
-                std::string file_type = path.substr(pos+1);
+                std::string file_type = path.substr(pos + 1);
+                Log(file_type);
                 HTTP_RESPONSE_HEADER tmp_header;
                 tmp_header.header_params["Content-Type"] = get_file_mime(file_type) + ";charset=utf-8";
                 return make_response(ReadFile(path), tmp_header);
@@ -167,11 +174,13 @@ std::string ROUTES::make_response(std::string str, HTTP_RESPONSE_HEADER header, 
         }
         else
         {
+            Log("403 Forbidden");
             return make_response("403 Forbidden", 403);
         }
     }
     else
     {
+        Log("404 Not Found!!!");
         return make_response("404 Not Found!!!", 404);
     }
 }
@@ -193,17 +202,17 @@ std::string ROUTES::get_str_status_code(int status)
     {
         status_line = http_status_lines[status - HTTP_OK];
     }
-    else if (status >= HTTP_OFF_3XX && status < HTTP_LAST_3XX)
+    else if (status > HTTP_LAST_2XX && status < HTTP_LAST_3XX)
     {
-        status_line = http_status_lines[status - HTTP_OFF_3XX];
+        status_line = http_status_lines[status + HTTP_OFF_3XX - 301];
     }
-    else if (status >= HTTP_OFF_4XX && status < HTTP_LAST_4XX)
+    else if (status > HTTP_LAST_3XX && status < HTTP_LAST_4XX)
     {
-        status_line = http_status_lines[status - HTTP_OFF_4XX];
+        status_line = http_status_lines[status + HTTP_OFF_4XX - 400];
     }
-    else if (status >= HTTP_OFF_5XX && status < HTTP_LAST_5XX)
+    else if (status > HTTP_LAST_4XX && status < HTTP_LAST_5XX)
     {
-        status_line = http_status_lines[status - HTTP_OFF_5XX];
+        status_line = http_status_lines[status + HTTP_OFF_5XX - 500];
     }
     return status_line;
 }
