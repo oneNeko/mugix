@@ -2,6 +2,7 @@
 #define CONFIG_H
 
 #include <string>
+#include <map>
 
 class Config
 {
@@ -18,5 +19,7 @@ public:
     int PORT;
     //指定文件目录
     std::string DIR_PATH;
+
+    std::map<std::string, std::string> content_type;
 };
 #endif

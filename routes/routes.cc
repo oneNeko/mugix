@@ -21,14 +21,22 @@ std::string ROUTES::process_requests(std::string request_text)
 
     if (header.abs_path == "/")
     {
-        return make_response("index.html");
+        return make_response("index.html", HTTP_RESPONSE_HEADER(), TYPE_FILE);
     }
     else if (header.abs_path == "/test")
     {
-        return make_response(200, "test");
+        return make_response("test");
+    }
+    else if (header.abs_path == "/302")
+    {
+        return make_response("test", "https://baidu.com/", 302);
+    }
+    else
+    {
+        return make_response(header.abs_path, HTTP_RESPONSE_HEADER(), TYPE_FILE);
     }
 
-    return make_response(404, "404");
+    return make_response("404", 404);
 }
 
 int ROUTES::parse_request_header(std::string str_request_header, HTTP_REQUEST_HEADER &header)
@@ -101,43 +109,42 @@ int ROUTES::parse_request_header(std::string str_request_header, HTTP_REQUEST_HE
     return 0;
 }
 
-std::string ROUTES::get_str_http_status(int status_code)
+// 构建响应
+std::string ROUTES::make_response(HTTP_RESPONSE response)
 {
-    auto str_status = "200 OK";
-    switch (status_code)
+    std::string str_header = "";
+    std::string str_body = response.body;
+
+    //构建响应头
+    str_header = response.header.http_protocol + " " + get_str_status_code(response.header.response_code) + "\r\n";
+    for (auto iter : response.header.header_params)
     {
-    case 200:
-    {
-        str_status = "200 OK";
-        break;
+        str_header += iter.first + ": " + iter.second + "\r\n";
     }
-    default:
-    {
-        str_status = "404 NOT FOUND";
-        break;
-    }
-    }
-    return str_status;
+    str_header += "\r\n";
+
+    return str_header + str_body;
 }
 
-std::string ROUTES::make_response(int status_code, std::string message)
+std::string ROUTES::make_response(std::string message, int status_code)
 {
-
-    std::string rmsg = "";
-    rmsg = "HTTP/1.1 " + get_str_http_status(status_code) + "\r\n";
-    rmsg += "Server: neko_server/0.1\r\n";
-    rmsg += "Content-Type: text/html;charset=utf-8\r\n";
-    rmsg += "Content-Length: ";
-    rmsg += std::to_string(message.size());
-    rmsg += "\r\n\r\n";
-    rmsg += message;
-    return rmsg;
+    return make_response(HTTP_RESPONSE(message, HTTP_RESPONSE_HEADER(status_code)));
 }
 
-std::string ROUTES::make_response(std::string file_path)
+std::string ROUTES::make_response(std::string message, std::string location, int status_code)
 {
+    return make_response(HTTP_RESPONSE(message, HTTP_RESPONSE_HEADER(status_code, "Location", location)));
+}
+
+std::string ROUTES::make_response(std::string str, HTTP_RESPONSE_HEADER header, TEXT_TYPE type)
+{
+    if (type == TYPE_TEXT)
+    {
+        return make_response(HTTP_RESPONSE(str, header));
+    }
+
     auto instance = Config::get_instance();
-    auto path = instance->DIR_PATH + file_path;
+    auto path = instance->DIR_PATH + str;
 
     Log(path);
 
@@ -145,16 +152,58 @@ std::string ROUTES::make_response(std::string file_path)
     {
         if (IsFileRead(path))
         {
-            
-            return make_response(200, ReadFile(path));
+            int pos = int(path.find_last_of('.'));
+            if (pos == -1)
+            {
+                return make_response(ReadFile(path));
+            }
+            else
+            {
+                std::string file_type = path.substr(pos+1);
+                HTTP_RESPONSE_HEADER tmp_header;
+                tmp_header.header_params["Content-Type"] = get_file_mime(file_type) + ";charset=utf-8";
+                return make_response(ReadFile(path), tmp_header);
+            }
         }
         else
         {
-            return make_response(403, "403");
+            return make_response("403 Forbidden", 403);
         }
     }
     else
     {
-        return make_response(404, "404");
+        return make_response("404 Not Found!!!", 404);
     }
+}
+
+std::string ROUTES::get_file_mime(std::string file_type)
+{
+    auto instance = Config::get_instance();
+    if (instance->content_type.find(file_type) != instance->content_type.end())
+    {
+        return instance->content_type[file_type];
+    }
+    return "null";
+}
+
+std::string ROUTES::get_str_status_code(int status)
+{
+    std::string status_line = "";
+    if (status >= HTTP_OK && status < HTTP_LAST_2XX)
+    {
+        status_line = http_status_lines[status - HTTP_OK];
+    }
+    else if (status >= HTTP_OFF_3XX && status < HTTP_LAST_3XX)
+    {
+        status_line = http_status_lines[status - HTTP_OFF_3XX];
+    }
+    else if (status >= HTTP_OFF_4XX && status < HTTP_LAST_4XX)
+    {
+        status_line = http_status_lines[status - HTTP_OFF_4XX];
+    }
+    else if (status >= HTTP_OFF_5XX && status < HTTP_LAST_5XX)
+    {
+        status_line = http_status_lines[status - HTTP_OFF_5XX];
+    }
+    return status_line;
 }

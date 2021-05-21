@@ -6,7 +6,7 @@
 mkdir build
 cd build
 cmake ..
-make
+make install
 
 // 运行，默认监听50001
 ./neko_server
