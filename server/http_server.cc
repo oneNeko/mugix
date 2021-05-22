@@ -98,6 +98,15 @@ bool HttpServer::Init()
     }
 
     ret = listen(server_listen_socket, 1000);
+    if (ret == 0)
+    {
+        Log("listening at 0.0.0.0:" + std::to_string(server_port));
+    }
+    else
+    {
+        Log("listen failed");
+        return false;
+    }
 
     return true;
 }
@@ -118,13 +127,13 @@ void HttpServer::ChildSocketProcess(int socket_fd)
         struct sockaddr_in connectedAddr;
         socklen_t connectedAddrLen = sizeof(connectedAddr);
         getpeername(socket_fd, (struct sockaddr *)&connectedAddr, &connectedAddrLen);
-        Log("new client! ipaddress: " + std::string(inet_ntoa(connectedAddr.sin_addr)) +":"+ std::to_string(ntohs(connectedAddr.sin_port)));
+        Log("client ipaddress: " + std::string(inet_ntoa(connectedAddr.sin_addr)) + ":" + std::to_string(ntohs(connectedAddr.sin_port)));
 
         //处理http请求
         ROUTES route;
         auto response_text = route.process_requests(buf);
 
-        Log(response_text);
+        //Log(response_text);
         //响应http请求
         send(socket_fd, response_text.c_str(), response_text.size(), 0);
 

@@ -18,21 +18,26 @@ std::string ROUTES::process_requests(std::string request_text)
     auto str_request_header = request_text.substr(0, pos);
     auto str_request_body = request_text.substr(pos + 4);
 
-    // 处理请求行
+    // 处理请求头
     HTTP_REQUEST_HEADER header;
     int res = parse_request_header(str_request_header, header);
+    if (res != 0)
+    {
+        return make_response("Bad Request", 400);
+    }
 
+    // 路由
     if (header.abs_path == "/")
     {
         return make_response("index.html", HTTP_RESPONSE_HEADER(), TYPE_FILE);
     }
-    else if (header.abs_path == "/test")
+    else if (header.abs_path == "/text")
     {
-        return make_response("test");
+        return make_response("text test");
     }
-    else if (header.abs_path == "/302")
+    else if (header.abs_path == "/baidu")
     {
-        return make_response("test", "https://baidu.com/", 302);
+        return make_response("302 test", "https://baidu.com/", 302);
     }
     else
     {
@@ -53,6 +58,7 @@ int ROUTES::parse_request_header(std::string str_request_header, HTTP_REQUEST_HE
     }
 
     //处理请求头的请求行
+    Log(header_lines[0]);
     auto header_first_line = SplitString(header_lines[0], " ");
     if (header_first_line.size() < 3)
     {
@@ -60,39 +66,43 @@ int ROUTES::parse_request_header(std::string str_request_header, HTTP_REQUEST_HE
         return -1;
     }
 
+    // 解析uri路径和参数
+    if (int(header_first_line[1].find_first_of('?') == -1))
+    {
+        header.abs_path = header_first_line[1];
+    }
+    else
+    {
+        header.abs_path = header_first_line[1].substr(0, header_first_line[1].find_first_of('?'));
+        auto params = SplitString(header_first_line[1].substr(header_first_line[1].find_first_of('?') + 1), "&");
+        if (params.size() > 1)
+        {
+            for (auto iter : params)
+            {
+                auto tmp = SplitString(iter, "=");
+                if (tmp.size() >= 2)
+                {
+                    header.uri_params[tmp[0]] = tmp[1];
+                }
+            }
+        }
+    }
+    // 解析协议名称
+    header.http_protocol = header_first_line[2];
+
+    // 解析请求方法
     std::string str_request_type = header_first_line[0];
     if (str_request_type == "GET")
     {
         header.http_type = GET;
-
-        // 解析uri路径和参数
-        if (int(header_first_line[1].find_first_of('?') == -1))
-        {
-            header.abs_path = header_first_line[1];
-        }
-        else
-        {
-            header.abs_path = header_first_line[1].substr(0, header_first_line[1].find_first_of('?'));
-            auto params = SplitString(header_first_line[1].substr(header_first_line[1].find_first_of('?') + 1), "&");
-            if (params.size() > 1)
-            {
-                for (auto iter : params)
-                {
-                    auto tmp = SplitString(iter, "=");
-                    if (tmp.size() >= 2)
-                    {
-                        header.uri_params[tmp[0]] = tmp[1];
-                    }
-                }
-            }
-        }
-        header.http_protocol = header_first_line[2];
     }
     else if (str_request_type == "HEAD")
     {
+        header.http_type = HEAD;
     }
     else if (str_request_type == "POST")
     {
+        header.http_type = POST;
     }
 
     // 处理请求头的其他行
@@ -118,8 +128,6 @@ std::string ROUTES::make_response(HTTP_RESPONSE response)
     std::string str_header = "";
     std::string str_body = response.body;
 
-    Log(std::to_string(response.header.response_code));
-    Log(get_str_status_code(response.header.response_code));
     //构建响应头
     str_header = response.header.http_protocol + " " + get_str_status_code(response.header.response_code) + "\r\n";
     for (auto iter : response.header.header_params)
@@ -127,6 +135,8 @@ std::string ROUTES::make_response(HTTP_RESPONSE response)
         str_header += iter.first + ": " + iter.second + "\r\n";
     }
     str_header += "\r\n";
+
+    Log(get_str_status_code(response.header.response_code) + "\r\n");
 
     return str_header + str_body;
 }
@@ -151,13 +161,12 @@ std::string ROUTES::make_response(std::string str, HTTP_RESPONSE_HEADER header, 
     auto instance = Config::get_instance();
     auto path = instance->DIR_PATH + str;
 
-    Log("filepath: " + path);
+    //Log("filepath: " + path);
 
     if (IsFileExists(path))
     {
         if (IsFileRead(path))
         {
-            Log("read file");
             int pos = int(path.find_last_of('.'));
             if (pos == -1)
             {
@@ -166,7 +175,6 @@ std::string ROUTES::make_response(std::string str, HTTP_RESPONSE_HEADER header, 
             else
             {
                 std::string file_type = path.substr(pos + 1);
-                Log(file_type);
                 HTTP_RESPONSE_HEADER tmp_header;
                 tmp_header.header_params["Content-Type"] = get_file_mime(file_type) + ";charset=utf-8";
                 return make_response(ReadFile(path), tmp_header);
@@ -174,14 +182,12 @@ std::string ROUTES::make_response(std::string str, HTTP_RESPONSE_HEADER header, 
         }
         else
         {
-            Log("403 Forbidden");
             return make_response("403 Forbidden", 403);
         }
     }
     else
     {
-        Log("404 Not Found!!!");
-        return make_response("404 Not Found!!!", 404);
+        return make_response("404 Not Found", 404);
     }
 }
 
