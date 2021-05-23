@@ -2,6 +2,7 @@
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/epoll.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <error.h>
@@ -116,8 +117,9 @@ void HttpServer::ChildSocketProcess(int socket_fd)
     int res = 0;
     do
     {
-        char buf[1024 * 2] = {0};
+        char buf[1024 * 1000] = {0};
         res = recv(socket_fd, buf, sizeof(buf) - 1, 0);
+        Log("recv bytes:"+std::to_string(res));
         if (res == 0)
         {
             break;
@@ -136,7 +138,7 @@ void HttpServer::ChildSocketProcess(int socket_fd)
         //Log(response_text);
         //响应http请求
         send(socket_fd, response_text.c_str(), response_text.size(), 0);
-
+        
         break;
 
     } while (res != 0 && res != -1);

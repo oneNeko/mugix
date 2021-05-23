@@ -3,9 +3,27 @@
 #include "routes.h"
 #include "../config/config.h"
 
+std::string ROUTES::login(std::string post_data)
+{
+    auto params = SplitString(post_data, "&");
+    std::map<SS> data;
+    for (auto iter : params)
+    {
+        auto it = SplitString(iter, "=");
+        data[it[0]] = it[1];
+    }
+    auto str = UrlDecode(post_data);
+    Log(str);
+    if (data["password"] == "123456")
+    {
+        return make_response("login success", "/", 302);
+    }
+    return make_response("login.html", HTTP_RESPONSE_HEADER(), TYPE_FILE);
+}
+
 std::string ROUTES::process_requests(std::string request_text)
 {
-    //Log(request_text);
+    Log(request_text);
 
     int pos = int(request_text.find_first_of("\r\n\r\n"));
     // 非法请求
@@ -27,9 +45,39 @@ std::string ROUTES::process_requests(std::string request_text)
     }
 
     // 路由
-    if (header.abs_path == "/")
+    if (header.abs_path == "/"&& header.http_type == GET)
     {
         return make_response("index.html", HTTP_RESPONSE_HEADER(), TYPE_FILE);
+    }
+    else if (header.abs_path == "/login")
+    {
+        switch (header.http_type)
+        {
+        case GET:
+            return make_response("login.html", HTTP_RESPONSE_HEADER(), TYPE_FILE);
+            break;
+        case POST:
+            return login(str_request_body);
+
+            return make_response("index.html", HTTP_RESPONSE_HEADER(), TYPE_FILE);
+            break;
+        default:
+            break;
+        }
+    }
+    else if(header.abs_path=="/upload"){
+        switch (header.http_type)
+        {
+        case GET:
+            return make_response("upload.html", HTTP_RESPONSE_HEADER(), TYPE_FILE);
+            break;
+        case POST:
+            Log("处理upload post");
+            return make_response("upload ok");
+            break;
+        default:
+            break;
+        }
     }
     else if (header.abs_path == "/text")
     {

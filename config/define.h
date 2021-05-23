@@ -44,7 +44,7 @@ struct HTTP_RESPONSE_HEADER
     int response_code = 200;
 
     std::unordered_map<SS> header_params = {
-        std::pair<SS>("Server", "neko_server/0.1"),
+        std::pair<SS>("Server", "mugix/0.1"),
         std::pair<SS>("Content-Type", "text/html;charset=utf-8"),
         std::pair<SS>("Connection", "keep-alive")};
 

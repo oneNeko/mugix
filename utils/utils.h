@@ -13,3 +13,5 @@ bool IsFileWrite(std::string path);
 bool IsFileExecute(std::string path);
 
 std::string ReadFile(std::string path);
+
+std::string UrlDecode(const std::string str);

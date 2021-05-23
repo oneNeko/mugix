@@ -26,6 +26,8 @@ private:
     std::string get_file_mime(std::string file_type);
     std::string get_str_status_code(int status);
 
+    std::string login(std::string post_data);
+
 public:
     std::string process_requests(std::string request_text);
 };
