@@ -10,11 +10,10 @@
 #include <stdlib.h>
 
 #include "http_server.h"
-#include "Signal.h"
-#include "sigchildwait.h"
 
 #include "../log/log.h"
 #include "../routes/routes.h"
+#include "mgx_epoll.h"
 
 HttpServer::HttpServer() : server_port(50001), is_run(false)
 {
@@ -50,26 +49,7 @@ void HttpServer::Run()
 
     is_run = true;
 
-    void sig_chld(int);
-    Signal(SIGCHLD, sig_chld);
-
-    while (is_run)
-    {
-        sockaddr_in addr_client;
-        socklen_t addr_client_len;
-        connfd = accept(server_listen_socket, (sockaddr *)&addr_client, &addr_client_len);
-        if (errno == EINTR)
-        {
-            continue;
-        }
-        if ((child_pid = fork()) == 0)
-        {
-            close(server_listen_socket);
-            ChildSocketProcess(connfd);
-            exit(0);
-        }
-        close(connfd);
-    }
+    MgxEpoll::do_epoll(server_listen_socket);
 }
 
 void HttpServer::Stop()
@@ -110,37 +90,4 @@ bool HttpServer::Init()
     }
 
     return true;
-}
-
-void HttpServer::ChildSocketProcess(int socket_fd)
-{
-    int res = 0;
-    do
-    {
-        char buf[1024 * 1000] = {0};
-        res = recv(socket_fd, buf, sizeof(buf) - 1, 0);
-        Log("recv bytes:"+std::to_string(res));
-        if (res == 0)
-        {
-            break;
-        }
-        buf[res] = '\0';
-
-        struct sockaddr_in connectedAddr;
-        socklen_t connectedAddrLen = sizeof(connectedAddr);
-        getpeername(socket_fd, (struct sockaddr *)&connectedAddr, &connectedAddrLen);
-        Log("client ipaddress: " + std::string(inet_ntoa(connectedAddr.sin_addr)) + ":" + std::to_string(ntohs(connectedAddr.sin_port)));
-
-        //处理http请求
-        ROUTES route;
-        auto response_text = route.process_requests(buf);
-
-        //Log(response_text);
-        //响应http请求
-        send(socket_fd, response_text.c_str(), response_text.size(), 0);
-        
-        break;
-
-    } while (res != 0 && res != -1);
-    close(socket_fd);
 }

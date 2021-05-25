@@ -45,7 +45,7 @@ std::string ROUTES::process_requests(std::string request_text)
     }
 
     // 路由
-    if (header.abs_path == "/"&& header.http_type == GET)
+    if (header.abs_path == "/" && header.http_type == GET)
     {
         return make_response("index.html", HTTP_RESPONSE_HEADER(), TYPE_FILE);
     }
@@ -65,7 +65,8 @@ std::string ROUTES::process_requests(std::string request_text)
             break;
         }
     }
-    else if(header.abs_path=="/upload"){
+    else if (header.abs_path == "/upload")
+    {
         switch (header.http_type)
         {
         case GET:
@@ -182,6 +183,9 @@ std::string ROUTES::make_response(HTTP_RESPONSE response)
     {
         str_header += iter.first + ": " + iter.second + "\r\n";
     }
+
+    str_header += "Content-Length: " + std::to_string(str_body.length())+"\r\n";
+
     str_header += "\r\n";
 
     Log(get_str_status_code(response.header.response_code) + "\r\n");
@@ -209,7 +213,7 @@ std::string ROUTES::make_response(std::string str, HTTP_RESPONSE_HEADER header, 
     auto instance = Config::get_instance();
     auto path = instance->DIR_PATH + str;
 
-    //Log("filepath: " + path);
+    Log("filepath: " + path);
 
     if (IsFileExists(path))
     {
