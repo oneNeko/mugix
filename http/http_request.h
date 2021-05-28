@@ -41,6 +41,7 @@ private:
 
 public:
     HTTP_CODE ParseHeader(string str_request_header);
+    void Clear();
 };
 
 #endif

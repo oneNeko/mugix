@@ -18,24 +18,6 @@ using namespace std;
 class HttpConn
 {
 public:
-    // 响应头结构
-    class ResponseHeader
-    {
-        string http_protocol = "HTTP/1.1";
-        string response_code;
-
-        string Server = "mugix/0.1";
-        string Date;
-        string Connection = "keep-alive";
-        int Content_Length;
-        string Content_Type;
-        string Location;
-
-    public:
-        int GenerateResponseHeaderStr(string &str_response_header);
-    };
-
-public:
     HttpConn(){};
     ~HttpConn(){};
 
@@ -68,6 +50,7 @@ private:
 public:
     HttpRequest request;
     HttpResponse response;
+
 public:
     string request_text;
     static int m_epollfd;

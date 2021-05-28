@@ -133,7 +133,7 @@ HTTP_CODE HttpRequest::ParseHeader(string str_request_header)
                     break;
                 }
                 line_to_process = str_request_header.substr(left);
-                right = INT16_MAX-10;
+                right = INT16_MAX - 10;
             }
             else
             {
@@ -174,4 +174,18 @@ HTTP_CODE HttpRequest::ParseHeader(string str_request_header)
         }
     }
     return GET_REQUEST;
+}
+
+void HttpRequest::Clear()
+{
+    m_method = -1;
+    abs_path.clear();
+    uri_params.clear();
+    http_protocol.clear();
+
+    header_params.clear();
+    Host.clear();
+    Connection.clear();
+    User_Agent.clear();
+    Cookie.clear();
 }

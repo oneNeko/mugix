@@ -291,12 +291,15 @@ void ROUTES::ProcessRequest(HttpConn *conn)
 
 void ROUTES::ProcessFile(HttpConn *conn)
 {
+    conn->response.file_path = conn->request.abs_path;
+    string file_type = conn->response.file_path.substr(conn->response.file_path.find_last_of(".") + 1);
+    conn->response.Content_Type = get_file_mime(file_type);
 }
 
 void ROUTES::index(HttpConn *conn)
 {
-    conn->response.Content_Type = "text/html; charset=utf-8";
-    conn->response.file_path = "/index.html";
+    conn->request.abs_path = "/index.html";
+    ProcessFile(conn);
 }
 
 void ROUTES::upload(HttpConn *conn)

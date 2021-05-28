@@ -20,6 +20,7 @@
 #include "mgx_epoll.h"
 #include "../config/config.h"
 #include "../http/http_conn.h"
+#include "../http/http_response.h"
 
 HttpServer::HttpServer() : server_port(50001), is_run(false)
 {
@@ -126,12 +127,12 @@ void HttpServer::dealwithwrite(int sockfd)
 
     int n_write = -1;
 
-    if (response.type < 2)
+    if (response.type == T_CONTENT)
     {
         string buf = str_header + response.content;
         n_write = write(sockfd, buf.c_str(), buf.size());
     }
-    else if (response.type == 2)
+    else if (response.type == T_FILE)
     {
         std::ifstream infile;
         std::stringstream buffer;
@@ -156,8 +157,10 @@ void HttpServer::dealwithwrite(int sockfd)
     else
     {
         Log("response: OK");
+        Log(str_header);
         modify_event(m_epoll_fd, sockfd, EPOLLIN);
     }
+    users[sockfd].CloseConn();
 }
 
 // 启动监听

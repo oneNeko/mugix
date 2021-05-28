@@ -31,6 +31,9 @@ void HttpConn::Init()
 
 void HttpConn::CloseConn(bool real_close)
 {
+    request_text = "";
+    request.Clear();
+    response.Clear();
 }
 
 bool HttpConn::write()

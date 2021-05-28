@@ -4,11 +4,17 @@
 #include <string>
 using namespace std;
 
+enum RESPONSE_TYPE
+{
+    T_CONTENT,
+    T_FILE,
+};
+
 class HttpResponse
 {
 private:
     // HTTP状态码
-    string http_status_lines[53] = {
+    const string http_status_lines[53] = {
 
 #define HTTP_OK 200
 
@@ -91,15 +97,9 @@ private:
     };
 
 public:
-    enum RESPONSE_TYPE
-    {
-        T_CONTENT,
-        T_HEADER,
-        T_FILE,
-    };
-    string protocol = "HTTP/1.1";
+    const string protocol = "HTTP/1.1";
     int response_code = 200;
-    string Server = "mugix/0.1";
+    const string Server = "mugix/0.1";
     string Date = "";
     string Content_Type;
     int Content_Length;
@@ -112,6 +112,7 @@ public:
 private:
     void SetType();
     void SetContentLength();
+    string GetStatusCode(int status);
 
 public:
     void GetResponseCode();
@@ -119,6 +120,8 @@ public:
     string GetDate();
     void Process();
     void CheckFile();
+
+    void Clear();
 };
 
 #endif

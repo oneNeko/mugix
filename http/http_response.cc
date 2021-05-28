@@ -30,6 +30,29 @@ void HttpResponse::Process()
     SetType();
     Date = GetDate();
 }
+
+std::string HttpResponse::GetStatusCode(int status)
+{
+    std::string status_line = "";
+    if (status >= HTTP_OK && status < HTTP_LAST_2XX)
+    {
+        status_line = http_status_lines[status - HTTP_OK];
+    }
+    else if (status > HTTP_LAST_2XX && status < HTTP_LAST_3XX)
+    {
+        status_line = http_status_lines[status + HTTP_OFF_3XX - 301];
+    }
+    else if (status > HTTP_LAST_3XX && status < HTTP_LAST_4XX)
+    {
+        status_line = http_status_lines[status + HTTP_OFF_4XX - 400];
+    }
+    else if (status > HTTP_LAST_4XX && status < HTTP_LAST_5XX)
+    {
+        status_line = http_status_lines[status + HTTP_OFF_5XX - 500];
+    }
+    return status_line;
+}
+
 string HttpResponse::GetHeader()
 {
     /*
@@ -42,11 +65,14 @@ Location: https://fin.oneneko.com/login?next=%2F
 Connection: keep-alive
 Vary: Cookie
 */
-    string header = protocol + " " + http_status_lines[response_code] + "\r\n";
+    string header = protocol + " " + GetStatusCode(response_code) + "\r\n";
     header += "Server: " + Server + "\r\n";
     header += "Date: " + Date + "\r\n";
     header += "Content-Type: " + Content_Type + "\r\n";
-    header += "Content-Length: " + to_string(Content_Length) + "\r\n";
+    if (Content_Length != 0)
+    {
+        header += "Content-Length: " + to_string(Content_Length) + "\r\n";
+    }
     header += "Connection: " + Connection + "\r\n";
     header += "\r\n";
 
@@ -107,25 +133,30 @@ void HttpResponse::SetContentLength()
         Content_Length = content.length();
         break;
     }
-    case T_HEADER:
-    {
-        Content_Length = 0;
-        break;
-    }
     }
 }
 
 void HttpResponse::SetType()
 {
-    if (response_code < 300 && response_code >= 200)
+    if (response_code < 100 || response_code >= 300)
     {
         if (type < 0)
         {
             type = T_CONTENT;
+            content = to_string(response_code);
         }
     }
-    else
-    {
-        type = T_HEADER;
-    }
+}
+
+void HttpResponse::Clear()
+{
+    response_code = 200;
+    Date.clear();
+    Content_Type.clear();
+    Content_Length = 0;
+    Connection = "keep-alive";
+
+    type = -1;
+    file_path.clear();
+    content.clear();
 }
