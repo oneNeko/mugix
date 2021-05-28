@@ -45,7 +45,7 @@ std::string ROUTES::process_requests(std::string request_text)
     }
 
     // 路由
-    if (header.abs_path == "/" && header.http_type == GET)
+    if (header.abs_path == "/" && header.http_type == SGET)
     {
         return make_response("index.html", HTTP_RESPONSE_HEADER(), TYPE_FILE);
     }
@@ -53,10 +53,10 @@ std::string ROUTES::process_requests(std::string request_text)
     {
         switch (header.http_type)
         {
-        case GET:
+        case SGET:
             return make_response("login.html", HTTP_RESPONSE_HEADER(), TYPE_FILE);
             break;
-        case POST:
+        case SPOST:
             return login(str_request_body);
 
             return make_response("index.html", HTTP_RESPONSE_HEADER(), TYPE_FILE);
@@ -69,10 +69,10 @@ std::string ROUTES::process_requests(std::string request_text)
     {
         switch (header.http_type)
         {
-        case GET:
+        case SGET:
             return make_response("upload.html", HTTP_RESPONSE_HEADER(), TYPE_FILE);
             break;
-        case POST:
+        case SPOST:
             Log("处理upload post");
             return make_response("upload ok");
             break;
@@ -143,15 +143,11 @@ int ROUTES::parse_request_header(std::string str_request_header, HTTP_REQUEST_HE
     std::string str_request_type = header_first_line[0];
     if (str_request_type == "GET")
     {
-        header.http_type = GET;
-    }
-    else if (str_request_type == "HEAD")
-    {
-        header.http_type = HEAD;
+        header.http_type = SGET;
     }
     else if (str_request_type == "POST")
     {
-        header.http_type = POST;
+        header.http_type = SPOST;
     }
 
     // 处理请求头的其他行

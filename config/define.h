@@ -12,15 +12,14 @@
 // HTTP类型
 enum HTTP_TYPE
 {
-    GET = 1,
-    POST,
-    HEAD
+    SGET = 1,
+    SPOST,
 };
 
 // HTTP请求头结构
 struct HTTP_REQUEST_HEADER
 {
-    int http_type = GET;
+    int http_type = SGET;
     std::string abs_path = "/";
     std::unordered_map<SS> uri_params;
     std::string http_protocol;

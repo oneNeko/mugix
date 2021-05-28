@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include <sys/epoll.h>
 
 std::vector<std::string> SplitString(std::string source, std::string pattern);
 
@@ -15,3 +16,9 @@ bool IsFileExecute(std::string path);
 std::string ReadFile(std::string path);
 
 std::string UrlDecode(const std::string str);
+
+class Utils
+{
+public:
+    static void ModifyFd(int epoll_fd, int fd, int event);
+};

@@ -6,8 +6,7 @@ static map<int,string> clients;
 
 class MgxEpoll
 {
-#define IPADDRESS "127.0.0.1"
-#define PORT 8787
+
 #define MAXSIZE 1024
 #define LISTENQ 5
 #define FDSIZE 1000

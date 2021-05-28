@@ -141,3 +141,11 @@ std::string UrlDecode(const std::string str)
     }
     return strTemp;
 }
+
+void Utils::ModifyFd(int epoll_fd, int fd, int state)
+{
+    struct epoll_event ev;
+    ev.events = state;
+    ev.data.fd = fd;
+    epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &ev);
+}

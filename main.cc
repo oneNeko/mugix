@@ -11,10 +11,9 @@ int main(int argc, char *argv[])
 
 	HttpServer server;
 
-	// 初始化
-	if (server.Start(instance->PORT))
-	{
-		server.Run();
-	}
+	server.Init();
+	server.EventListen();
+	server.EventLoop();
+
 	return 0;
 }
