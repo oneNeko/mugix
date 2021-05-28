@@ -1,5 +1,6 @@
 #include "http_conn.h"
 #include "../utils/utils.h"
+#include "../routes/routes.h"
 #include <iostream>
 using namespace std;
 
@@ -40,9 +41,7 @@ bool HttpConn::write()
 HTTP_CODE HttpConn::ProcessRead()
 {
     int pos = request_text.find("\r\n\r\n");
-    cout<<request_text<<endl;
-    cout<<pos<<endl;
-    
+
     if (pos < 0)
     {
         return BAD_REQUEST;
@@ -56,6 +55,9 @@ HTTP_CODE HttpConn::ProcessRead()
 
 bool HttpConn::process_write(HTTP_CODE ret)
 {
+    ROUTES route;
+    route.ProcessRequest(this);
+    response.Process();
     return true;
 }
 
@@ -79,6 +81,7 @@ HTTP_CODE HttpConn::do_request()
     return GET_REQUEST;
 }
 
+// 处理请求
 void HttpConn::Process()
 {
     HTTP_CODE read_ret = ProcessRead();

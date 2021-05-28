@@ -4,7 +4,7 @@
 #include "config.h"
 #include "../utils/utils.h"
 
-Config::Config() : PORT(50001), DIR_PATH("../html/")
+Config::Config() : PORT(50001)
 {
     auto data = ReadFile("conf/mime.conf");
     auto data_set = SplitString(data, ";\n");

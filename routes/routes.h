@@ -5,6 +5,7 @@
 #include <set>
 #include <string>
 #include "../config/define.h"
+#include "../http/http_conn.h"
 
 class ROUTES
 {
@@ -30,4 +31,11 @@ private:
 
 public:
     std::string process_requests(std::string request_text);
+    void ProcessRequest(HttpConn *conn);
+
+private:
+    //路由处理函数
+    void ProcessFile(HttpConn *conn);
+    void index(HttpConn *conn);
+    void upload(HttpConn *conn);
 };

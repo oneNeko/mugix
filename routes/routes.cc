@@ -180,7 +180,7 @@ std::string ROUTES::make_response(HTTP_RESPONSE response)
         str_header += iter.first + ": " + iter.second + "\r\n";
     }
 
-    str_header += "Content-Length: " + std::to_string(str_body.length())+"\r\n";
+    str_header += "Content-Length: " + std::to_string(str_body.length()) + "\r\n";
 
     str_header += "\r\n";
 
@@ -270,3 +270,37 @@ std::string ROUTES::get_str_status_code(int status)
     }
     return status_line;
 }
+
+void ROUTES::ProcessRequest(HttpConn *conn)
+{
+    if (conn->request.abs_path == "/")
+    {
+        index(conn);
+    }
+    else if (conn->request.abs_path == "/upload")
+    {
+        upload(conn);
+    }
+    else
+    {
+        ProcessFile(conn);
+    }
+}
+
+#pragma region 路由处理函数
+
+void ROUTES::ProcessFile(HttpConn *conn)
+{
+}
+
+void ROUTES::index(HttpConn *conn)
+{
+    conn->response.Content_Type = "text/html; charset=utf-8";
+    conn->response.file_path = "/index.html";
+}
+
+void ROUTES::upload(HttpConn *conn)
+{
+}
+
+#pragma endregion

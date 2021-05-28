@@ -9,6 +9,9 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <iostream>
+#include <fstream>
+#include <sstream>
 
 #include "http_server.h"
 
@@ -80,7 +83,7 @@ void HttpServer::dealwithread(int sockfd)
 {
     char buf[2048];
     int n = recv(sockfd, buf, sizeof(buf), 0);
-    Log("recv bytes: " + to_string(n));
+    
     if (n < 0)
     {
         Log("recv error");
@@ -95,7 +98,7 @@ void HttpServer::dealwithread(int sockfd)
     }
     else if (n == 0)
     {
-        Log("recv finish");
+        Log("client close");
         DeleteEvent(m_epoll_fd, sockfd, EPOLLIN);
         close(sockfd);
     }
@@ -104,9 +107,8 @@ void HttpServer::dealwithread(int sockfd)
         Log(buf);
         if (n != sizeof(buf))
         {
-            HttpConn conn;
-            conn.request_text = buf;
-            conn.Process();
+            users[sockfd].request_text = buf;
+            users[sockfd].Process();
             modify_event(m_epoll_fd, sockfd, EPOLLOUT);
         }
         else
@@ -119,10 +121,33 @@ void HttpServer::dealwithread(int sockfd)
 // 向socket缓冲区写入数据
 void HttpServer::dealwithwrite(int sockfd)
 {
+    auto response = users[sockfd].response;
+    string str_header = response.GetHeader();
 
-    char buf[1024] = "HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Type: text/html;charset=utf-8\r\nServer: neko_server/0.1\r\nContent-Length: 3\r\n\r\n404";
-    int n = write(sockfd, buf, strlen(buf));
-    if (n < 0)
+    int n_write = -1;
+
+    if (response.type < 2)
+    {
+        string buf = str_header + response.content;
+        n_write = write(sockfd, buf.c_str(), buf.size());
+    }
+    else if (response.type == 2)
+    {
+        std::ifstream infile;
+        std::stringstream buffer;
+
+        infile.open(response.file_path);
+
+        buffer << infile.rdbuf();
+        std::string contents(buffer.str());
+
+        infile.close();
+
+        string buf = str_header + contents;
+        n_write = write(sockfd, buf.c_str(), buf.size());
+    }
+
+    if (n_write < 0)
     {
         Log("client close,errno=EINTR");
         DeleteEvent(m_epoll_fd, sockfd, EPOLLIN);
@@ -130,7 +155,7 @@ void HttpServer::dealwithwrite(int sockfd)
     }
     else
     {
-        Log("response: ");
+        Log("response: OK");
         modify_event(m_epoll_fd, sockfd, EPOLLIN);
     }
 }
@@ -152,6 +177,7 @@ int HttpServer::EventListen()
 
     ret = listen(m_listen_fd, 1000);
     assert(ret >= 0);
+    Log("listening at " + addr.sin_addr.s_addr + to_string(server_port));
 
     // epoll
     m_epoll_fd = epoll_create(5);

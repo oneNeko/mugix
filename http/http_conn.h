@@ -11,6 +11,7 @@
 
 #include "http_define.h"
 #include "http_request.h"
+#include "http_response.h"
 
 using namespace std;
 
@@ -20,12 +21,12 @@ public:
     // 响应头结构
     class ResponseHeader
     {
-        string http_protocol="HTTP/1.1";
+        string http_protocol = "HTTP/1.1";
         string response_code;
 
         string Server = "mugix/0.1";
         string Date;
-        string Connection="keep-alive";
+        string Connection = "keep-alive";
         int Content_Length;
         string Content_Type;
         string Location;
@@ -63,11 +64,12 @@ private:
 private:
     int m_sockfd;
     sockaddr_in m_address;
-    
-    HttpRequest request;
 
 public:
-string request_text;
+    HttpRequest request;
+    HttpResponse response;
+public:
+    string request_text;
     static int m_epollfd;
     static int m_user_count;
 };

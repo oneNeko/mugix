@@ -10,7 +10,7 @@ using namespace std;
 
 class HttpRequest
 {
-private:
+public:
     enum
     {
         LINE_REQUEST,

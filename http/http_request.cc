@@ -1,6 +1,7 @@
 #include "http_request.h"
 #include <iostream>
 
+// 切割字符串
 vector<string> HttpRequest::SplitString(string src, string pattern)
 {
     int left = 0, right = 0;
@@ -25,6 +26,7 @@ vector<string> HttpRequest::SplitString(string src, string pattern)
     return result;
 }
 
+// 解析请求行
 int HttpRequest::ParseRequestLine(string src)
 {
     auto items = SplitString(src, " ");
@@ -54,6 +56,8 @@ int HttpRequest::ParseRequestLine(string src)
     http_protocol = items[2];
     return 0;
 }
+
+// 解析uri参数列表
 int HttpRequest::ParseUriParams(string src)
 {
     int pos = 0;
@@ -82,6 +86,8 @@ int HttpRequest::ParseUriParams(string src)
     }
     return 0;
 }
+
+// 解析请求头参数
 int HttpRequest::ParseHeaderParams(string src)
 {
     auto params = SplitString(src, ": ");
@@ -93,6 +99,7 @@ int HttpRequest::ParseHeaderParams(string src)
     return 0;
 }
 
+// 解析请求头
 HTTP_CODE HttpRequest::ParseHeader(string str_request_header)
 {
     int left = 0, right = 0;
@@ -135,7 +142,7 @@ HTTP_CODE HttpRequest::ParseHeader(string str_request_header)
 
             left = right + 2;
 
-            if (check_request_line)
+            if (check_request_line) //解析请求行
             {
                 state = LINE_REQUEST;
             }
@@ -143,6 +150,7 @@ HTTP_CODE HttpRequest::ParseHeader(string str_request_header)
             {
                 state = LINE_HEDAER_PARAMS;
             }
+            break;
         }
         case LINE_HEDAER_PARAMS:
         {
