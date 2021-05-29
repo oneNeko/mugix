@@ -12,6 +12,10 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/sendfile.h>
 
 #include "http_server.h"
 
@@ -134,18 +138,16 @@ void HttpServer::dealwithwrite(int sockfd)
     }
     else if (response.type == T_FILE)
     {
-        std::ifstream infile;
-        std::stringstream buffer;
-
-        infile.open(response.file_path);
-
-        buffer << infile.rdbuf();
-        std::string contents(buffer.str());
-
-        infile.close();
-
-        string buf = str_header + contents;
+        string buf = str_header;
         n_write = write(sockfd, buf.c_str(), buf.size());
+        assert(n_write > 0);
+
+        // 发送文件
+        int file_fd = open(response.file_path.c_str(), O_RDONLY);
+
+        n_write = sendfile(sockfd, file_fd, NULL, response.Content_Length);
+
+        assert(n_write > 0);
     }
 
     if (n_write < 0)

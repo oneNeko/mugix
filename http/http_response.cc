@@ -29,6 +29,7 @@ void HttpResponse::Process()
     CheckFile();
     SetType();
     Date = GetDate();
+    SetContentLength();
 }
 
 std::string HttpResponse::GetStatusCode(int status)
