@@ -11,6 +11,7 @@
 
 #include "../http/http_conn.h"
 #include "../http/http_define.h"
+#include "../threadpool/thread_pool.h"
 
 const int k_MAX_FD = 65536;
 const int k_MAX_EVENT_NUMBER = 10000;
@@ -34,6 +35,7 @@ private:
     bool is_run;
 
 public:
+    void InitThreadPool();
     int EventListen();
     void EventLoop();
     bool dealclientdata(int sockfd);
@@ -43,4 +45,9 @@ public:
 private:
     int m_listen_fd;
     epoll_event events[k_MAX_EVENT_NUMBER];
+
+    //线程池相关 
+    ThreadPool<HttpConn> *m_pool;
+    int m_thread_num=1000;
+    int max_requests=10000;
 };

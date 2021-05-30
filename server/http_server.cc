@@ -3,6 +3,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/epoll.h>
+#include <sys/mman.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <error.h>
@@ -88,7 +89,7 @@ void HttpServer::dealwithread(int sockfd)
 {
     char buf[2048];
     int n = recv(sockfd, buf, sizeof(buf), 0);
-    
+
     if (n < 0)
     {
         Log("recv error");
@@ -112,9 +113,10 @@ void HttpServer::dealwithread(int sockfd)
         Log(buf);
         if (n != sizeof(buf))
         {
-            users[sockfd].request_text = buf;
-            users[sockfd].Process();
-            modify_event(m_epoll_fd, sockfd, EPOLLOUT);
+            users[sockfd].request_text += buf;
+            users[sockfd].m_sockfd=sockfd;
+            m_pool->Append(users + sockfd);
+            //modify_event(m_epoll_fd, sockfd, EPOLLOUT);
         }
         else
         {
@@ -165,6 +167,12 @@ void HttpServer::dealwithwrite(int sockfd)
     users[sockfd].CloseConn();
 }
 
+// 创建线程池
+void HttpServer::InitThreadPool()
+{
+    m_pool = new ThreadPool<HttpConn>(m_thread_num, max_requests);
+}
+
 // 启动监听
 int HttpServer::EventListen()
 {
@@ -176,6 +184,9 @@ int HttpServer::EventListen()
     addr.sin_family = AF_INET;
     addr.sin_port = htons(server_port);
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    int flag = 1;
+    setsockopt(m_listen_fd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
 
     int ret = bind(m_listen_fd, (sockaddr *)&addr, sizeof(addr));
     assert(ret >= 0);

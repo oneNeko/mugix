@@ -8,4 +8,6 @@ file(GLOB_RECURSE source_files ./*.cc)
 
 add_executable(${PROJECT_NAME} ${source_files})
 
+target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC pthread)
+
 INSTALL(DIRECTORY ${PROJECT_SOURCE_DIR}/conf DESTINATION ${CMAKE_SOURCE_DIR}/build/)

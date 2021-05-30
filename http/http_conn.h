@@ -25,7 +25,6 @@ public:
     void Init(int sock_fd, const sockaddr_in &addr);
     void CloseConn(bool real_close = true);
     void Process();
-    bool Write();
 
 private:
     void Init();
@@ -37,13 +36,12 @@ private:
     HTTP_CODE DoRequest();
 
     bool process_write(HTTP_CODE ret);
-    bool write();
     HTTP_CODE parse_request_line(char *text);
     HTTP_CODE parse_headers(char *text);
     HTTP_CODE parse_content(char *text);
     HTTP_CODE do_request();
 
-private:
+public:
     int m_sockfd;
     sockaddr_in m_address;
 

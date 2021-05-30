@@ -12,6 +12,9 @@ int main(int argc, char *argv[])
 	HttpServer server;
 
 	server.Init();
+
+	server.InitThreadPool();
+
 	server.EventListen();
 	server.EventLoop();
 
