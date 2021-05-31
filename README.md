@@ -9,5 +9,5 @@ cmake ..
 make install
 
 // 运行，默认监听50001
-./mugix -p 50001
+./build/mugix -p 50001 -d /home/neko/mugix/html/
 ```

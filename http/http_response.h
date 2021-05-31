@@ -97,30 +97,29 @@ private:
     };
 
 public:
-    const string protocol = "HTTP/1.1";
-    int response_code = 200;
-    const string Server = "mugix/0.1";
-    string Date = "";
-    string Content_Type;
-    int Content_Length;
-    string Connection = "keep-alive";
+    const string protocol_ = "HTTP/1.1";
+    int response_code_ = 200;
+    const string server_ = "mugix/0.1";
+    string date_ = "";
+    string content_type_;
+    int content_length_;
+    string connection_ = "keep-alive";
 
-    int type = -1;
-    string file_path;
-    string content;
+    int type_ = -1;
+    string file_path_;
+    string content_;
 
 private:
     void SetType();
     void SetContentLength();
     string GetStatusCode(int status);
+    string GetDate();
+    void CheckFile();
+    void GetResponseCode();
 
 public:
-    void GetResponseCode();
     string GetHeader();
-    string GetDate();
     void Process();
-    void CheckFile();
-
     void Clear();
 };
 

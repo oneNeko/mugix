@@ -3,10 +3,6 @@
 #endif
 
 #include <string>
-#include <unordered_map>
-#include <regex>
-#include <iostream>
-
 #include <sys/socket.h>
 
 #include "../http/http_conn.h"
@@ -19,35 +15,32 @@ const int k_MAX_EPOLL = 1000;
 
 class HttpServer
 {
-public:
-    int m_epoll_fd;
-    HttpConn *users;
+private:
+    int epollfd_;
+    int server_listen_socketfd_;
+    int server_port_;
+
+    HttpConn *users_;
+    epoll_event events_[k_MAX_EVENT_NUMBER];
+
+    //线程池相关
+    ThreadPool<HttpConn> *pool_;
+    int thread_num_ = 10;
+    int max_requests_ = 10000;
+
+private:
+    void InitThreadPool();
+
+    // 处理connect socket事件
+    bool ProcessNewClient(int sockfd);
+    void ProcessRead(int sockfd);
+    void ProcessWrite(int sockfd);
 
 public:
     HttpServer();
     ~HttpServer();
 
     void Init();
-
-private:
-    int server_listen_socket;
-    int server_port;
-    bool is_run;
-
-public:
-    void InitThreadPool();
     int EventListen();
     void EventLoop();
-    bool dealclientdata(int sockfd);
-    void dealwithread(int sockfd);
-    void dealwithwrite(int sockfd);
-
-private:
-    int m_listen_fd;
-    epoll_event events[k_MAX_EVENT_NUMBER];
-
-    //线程池相关 
-    ThreadPool<HttpConn> *m_pool;
-    int m_thread_num=1000;
-    int max_requests=10000;
 };

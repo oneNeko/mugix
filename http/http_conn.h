@@ -1,14 +1,12 @@
 #ifndef HTTP_CONN_H
 #define HTTP_CONN_H
 
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netinet/in.h>
 #include <sys/epoll.h>
+#include <sys/socket.h>
 #include <string>
-#include <map>
-
+#include <unistd.h>
 #include "http_define.h"
 #include "http_request.h"
 #include "http_response.h"
@@ -23,7 +21,7 @@ public:
 
 public:
     void Init(int sock_fd, const sockaddr_in &addr);
-    void CloseConn(bool real_close = true);
+    void ResetConn(bool real_close = true);
     void Process();
 
 private:
@@ -34,25 +32,16 @@ private:
     HTTP_CODE ParseHeaders(char *text);
     HTTP_CODE ParseContent(char *text);
     HTTP_CODE DoRequest();
-
-    bool process_write(HTTP_CODE ret);
-    HTTP_CODE parse_request_line(char *text);
-    HTTP_CODE parse_headers(char *text);
-    HTTP_CODE parse_content(char *text);
-    HTTP_CODE do_request();
-
+    
 public:
-    int m_sockfd;
-    sockaddr_in m_address;
+    int client_sockfd_;
+    sockaddr_in client_address_;
+    string request_text_;
+    static int epollfd_;
+    static int user_count_;
 
-public:
-    HttpRequest request;
-    HttpResponse response;
-
-public:
-    string request_text;
-    static int m_epollfd;
-    static int m_user_count;
+    HttpRequest request_;
+    HttpResponse response_;
 };
 
 #endif

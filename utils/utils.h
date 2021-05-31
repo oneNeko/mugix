@@ -1,24 +1,23 @@
 #ifndef UTILS_H
 #define UTILS_H
-#endif
 
 #include <string>
 #include <vector>
 #include <sys/epoll.h>
 
-std::vector<std::string> SplitString(std::string source, std::string pattern);
-
-bool IsFileExists(std::string path);
-bool IsFileRead(std::string path);
-bool IsFileWrite(std::string path);
-bool IsFileExecute(std::string path);
-
-std::string ReadFile(std::string path);
-
-std::string UrlDecode(const std::string str);
-
 class Utils
 {
 public:
-    static void ModifyFd(int epoll_fd, int fd, int event);
+    // 切割字符串
+    static std::vector<std::string> SplitString(std::string source, std::string pattern);
+
+    // 修改epoll状态
+    
+    static void AddEvent(int epollfd, int fd, int state);
+    static void DeleteEvent(int epollfd, int fd, int state);
+    static void ModifyEvent(int epollfd, int fd, int state);
+
+    static std::string ReadFile(std::string path);
 };
+
+#endif

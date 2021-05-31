@@ -20,19 +20,11 @@ public:
         LINE_ERROR
     };
 
-    int m_method = -1;
-    string abs_path;
-    map<string, string> uri_params;
-    string http_protocol;
-
-    map<string, string> header_params;
-    string Host;
-    string Connection;
-    string User_Agent;
-    string Cookie;
-
-private:
-    vector<string> SplitString(string src, string pattern);
+    int method_ = -1;
+    string abs_path_;
+    map<string, string> uri_params_;
+    string http_protocol_;
+    map<string, string> header_params_;
 
 private:
     int ParseRequestLine(string src);

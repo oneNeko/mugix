@@ -5,7 +5,7 @@
 
 #include "utils.h"
 
-std::vector<std::string> SplitString(std::string source, std::string pattern)
+std::vector<std::string> Utils::SplitString(std::string source, std::string pattern)
 {
     int left = 0, right = 0;
     int pattern_size = pattern.length();
@@ -24,47 +24,34 @@ std::vector<std::string> SplitString(std::string source, std::string pattern)
     return result;
 }
 
-bool IsFileExists(std::string path)
+// 添加epoll事件
+void Utils::AddEvent(int epollfd, int fd, int state)
 {
-    int res = access(path.c_str(), F_OK);
-    if (res == 0)
-    {
-        return true;
-    }
-    return false;
+    struct epoll_event event;
+    event.events = state;
+    event.data.fd = fd;
+    epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &event);
 }
 
-bool IsFileRead(std::string path)
+// 删除epoll事件
+void Utils::DeleteEvent(int epollfd, int fd, int state)
 {
-    int res = access(path.c_str(), R_OK);
-    if (res == 0)
-    {
-        return true;
-    }
-    return false;
+    struct epoll_event ev;
+    ev.events = state;
+    ev.data.fd = fd;
+    epoll_ctl(epollfd, EPOLL_CTL_DEL, fd, &ev);
 }
 
-bool IsFileWrite(std::string path)
+// 修改epoll事件
+void Utils::ModifyEvent(int epollfd, int fd, int state)
 {
-    int res = access(path.c_str(), W_OK);
-    if (res == 0)
-    {
-        return true;
-    }
-    return false;
+    struct epoll_event ev;
+    ev.events = state;
+    ev.data.fd = fd;
+    epoll_ctl(epollfd, EPOLL_CTL_MOD, fd, &ev);
 }
 
-bool IsFileExecute(std::string path)
-{
-    int res = access(path.c_str(), X_OK);
-    if (res == 0)
-    {
-        return true;
-    }
-    return false;
-}
-
-std::string ReadFile(std::string path)
+std::string Utils::ReadFile(std::string path)
 {
     std::ifstream infile;
     std::stringstream buffer;
@@ -77,75 +64,4 @@ std::string ReadFile(std::string path)
     infile.close();
 
     return contents;
-}
-
-unsigned char ToHex(unsigned char x)
-{
-    return x > 9 ? x + 55 : x + 48;
-}
-
-unsigned char FromHex(unsigned char x)
-{
-    unsigned char y;
-    if (x >= 'A' && x <= 'Z')
-        y = x - 'A' + 10;
-    else if (x >= 'a' && x <= 'z')
-        y = x - 'a' + 10;
-    else if (x >= '0' && x <= '9')
-        y = x - '0';
-    //else assert(0);
-    return y;
-}
-
-std::string UrlEncode(const std::string &str)
-{
-    std::string strTemp = "";
-    size_t length = str.length();
-    for (size_t i = 0; i < length; i++)
-    {
-        if (isalnum((unsigned char)str[i]) ||
-            (str[i] == '-') ||
-            (str[i] == '_') ||
-            (str[i] == '.') ||
-            (str[i] == '~'))
-            strTemp += str[i];
-        else if (str[i] == ' ')
-            strTemp += "+";
-        else
-        {
-            strTemp += '%';
-            strTemp += ToHex((unsigned char)str[i] >> 4);
-            strTemp += ToHex((unsigned char)str[i] % 16);
-        }
-    }
-    return strTemp;
-}
-
-std::string UrlDecode(const std::string str)
-{
-    std::string strTemp = "";
-    size_t length = str.length();
-    for (size_t i = 0; i < length; i++)
-    {
-        if (str[i] == '+')
-            strTemp += ' ';
-        else if (str[i] == '%')
-        {
-            //assert(i + 2 < length);
-            unsigned char high = FromHex((unsigned char)str[++i]);
-            unsigned char low = FromHex((unsigned char)str[++i]);
-            strTemp += high * 16 + low;
-        }
-        else
-            strTemp += str[i];
-    }
-    return strTemp;
-}
-
-void Utils::ModifyFd(int epoll_fd, int fd, int state)
-{
-    struct epoll_event ev;
-    ev.events = state;
-    ev.data.fd = fd;
-    epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &ev);
 }

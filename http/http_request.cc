@@ -1,35 +1,12 @@
 #include "http_request.h"
 #include <iostream>
 
-// 切割字符串
-vector<string> HttpRequest::SplitString(string src, string pattern)
-{
-    int left = 0, right = 0;
-    int pattern_size = pattern.length();
-    int src_length = src.length();
-    std::vector<std::string> result;
-    while (true)
-    {
-        right = int(src.find(pattern, left));
-        if (right == -1)
-        {
-            if (left == src_length)
-            {
-                break;
-            }
-            result.push_back(src.substr(left));
-            break;
-        }
-        result.push_back(src.substr(left, right - left));
-        left = right + pattern_size;
-    }
-    return result;
-}
+#include "../utils/utils.h"
 
 // 解析请求行
 int HttpRequest::ParseRequestLine(string src)
 {
-    auto items = SplitString(src, " ");
+    auto items = Utils::SplitString(src, " ");
     if (items.size() != 3)
     {
         return BAD_REQUEST;
@@ -40,10 +17,10 @@ int HttpRequest::ParseRequestLine(string src)
     {
         if (method_str[i] == items[0])
         {
-            m_method = i;
+            method_ = i;
         }
     }
-    if (m_method == -1)
+    if (method_ == -1)
     {
         return -1;
     }
@@ -53,7 +30,7 @@ int HttpRequest::ParseRequestLine(string src)
     {
         return 10;
     }
-    http_protocol = items[2];
+    http_protocol_ = items[2];
     return 0;
 }
 
@@ -66,23 +43,23 @@ int HttpRequest::ParseUriParams(string src)
     pos = int(src.find("?"));
     if (pos > src.size())
     {
-        abs_path = src;
+        abs_path_ = src;
         return 0;
     }
 
-    abs_path = src.substr(0, pos);
+    abs_path_ = src.substr(0, pos);
     src = src.substr(pos + 1, src.length() - pos);
 
     // 解析参数
-    auto params = SplitString(src, "&");
+    auto params = Utils::SplitString(src, "&");
     for (auto it : params)
     {
-        auto its = SplitString(it, "=");
+        auto its = Utils::SplitString(it, "=");
         if (its.size() != 2)
         {
             return -1;
         }
-        uri_params[its[0]] = its[1];
+        uri_params_[its[0]] = its[1];
     }
     return 0;
 }
@@ -90,12 +67,12 @@ int HttpRequest::ParseUriParams(string src)
 // 解析请求头参数
 int HttpRequest::ParseHeaderParams(string src)
 {
-    auto params = SplitString(src, ": ");
+    auto params = Utils::SplitString(src, ": ");
     if (params.size() != 2)
     {
         return BAD_REQUEST;
     }
-    header_params[params[0]] = params[1];
+    header_params_[params[0]] = params[1];
     return 0;
 }
 
@@ -178,14 +155,10 @@ HTTP_CODE HttpRequest::ParseHeader(string str_request_header)
 
 void HttpRequest::Clear()
 {
-    m_method = -1;
-    abs_path.clear();
-    uri_params.clear();
-    http_protocol.clear();
+    method_ = -1;
+    abs_path_.clear();
+    uri_params_.clear();
+    http_protocol_.clear();
 
-    header_params.clear();
-    Host.clear();
-    Connection.clear();
-    User_Agent.clear();
-    Cookie.clear();
+    header_params_.clear();
 }

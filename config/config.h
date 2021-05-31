@@ -10,16 +10,16 @@ private:
     Config();
 
 public:
-    static Config *get_instance();
+    static Config *GetInstance();
     ~Config();
 
-    void parse_config(int agrc, char *argv[]);
+    void ParseConfig(int agrc, char *argv[]);
 
     //端口号
     int PORT;
     //指定文件目录
     std::string DIR_PATH;
 
-    std::map<std::string, std::string> content_type;
+    std::map<std::string, std::string> content_type_;
 };
 #endif

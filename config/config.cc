@@ -6,20 +6,20 @@
 
 Config::Config() : PORT(50001)
 {
-    auto data = ReadFile("conf/mime.conf");
-    auto data_set = SplitString(data, ";\n");
+    auto data = Utils::ReadFile("conf/mime.conf");
+    auto data_set = Utils::SplitString(data, ";\n");
 
     for (auto iter : data_set)
     {
-        auto data_line = SplitString(iter, " : ");
+        auto data_line = Utils::SplitString(iter, " : ");
         if(data_line.size()!=2){
             continue;
         }
         
-        auto mimes = SplitString(data_line[1], " , ");
+        auto mimes = Utils::SplitString(data_line[1], " , ");
         for (auto it : mimes)
         {
-            content_type[it] = data_line[0];
+            content_type_[it] = data_line[0];
         }
     }
 }
@@ -28,7 +28,7 @@ Config::~Config()
 {
 }
 
-void Config::parse_config(int argc, char *argv[])
+void Config::ParseConfig(int argc, char *argv[])
 {
     int opt;
     const char *str = "p:d:";
@@ -50,7 +50,7 @@ void Config::parse_config(int argc, char *argv[])
     }
 }
 
-Config *Config::get_instance()
+Config *Config::GetInstance()
 {
     static Config *instance;
     if (instance == NULL)

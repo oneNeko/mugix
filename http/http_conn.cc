@@ -1,36 +1,28 @@
-#include "http_conn.h"
-#include "../utils/utils.h"
-#include "../routes/routes.h"
-#include <iostream>
 #include <assert.h>
-#include "../log/log.h"
+#include <fcntl.h>
+#include <fstream>
+#include <iostream>
+#include <istream>
+#include <ostream>
+#include <sstream>
 #include <sys/sendfile.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
-#include <fstream>
-#include <ostream>
-#include <istream>
-#include <sstream>
+
+#include "http_conn.h"
+#include "../utils/utils.h"
+#include "../routes/routes.h"
+#include "../log/log.h"
+
 using namespace std;
 
-int HttpConn::m_user_count = 0;
-int HttpConn::m_epollfd = -1;
-
-void add_event(int epollfd, int fd, int state)
-{
-    struct epoll_event ev;
-    ev.events = state;
-    ev.data.fd = fd;
-    epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev);
-}
+int HttpConn::user_count_ = 0;
+int HttpConn::epollfd_ = -1;
 
 void HttpConn::Init(int sock_fd, const sockaddr_in &addr)
 {
-    m_sockfd = sock_fd;
-    m_address = addr;
-
-    add_event(m_epollfd, sock_fd, EPOLLIN);
+    client_sockfd_ = sock_fd;
+    client_address_ = addr;
 
     Init();
 }
@@ -39,58 +31,49 @@ void HttpConn::Init()
 {
 }
 
-void HttpConn::CloseConn(bool real_close)
+void HttpConn::ResetConn(bool real_close)
 {
-    request_text = "";
-    request.Clear();
-    response.Clear();
+    request_text_ = "";
+    request_.Clear();
+    response_.Clear();
 }
 
 HTTP_CODE HttpConn::ProcessRead()
 {
-    int pos = request_text.find("\r\n\r\n");
+    int pos = request_text_.find("\r\n\r\n");
 
     if (pos < 0)
     {
         return BAD_REQUEST;
     }
-    string header = request_text.substr(0, pos);
+    string header = request_text_.substr(0, pos);
 
-    HTTP_CODE res = request.ParseHeader(header);
+    HTTP_CODE res = request_.ParseHeader(header);
 
     return res;
 }
 
-void delete_event(int epollfd, int fd, int state)
-{
-    struct epoll_event ev;
-    ev.events = state;
-    ev.data.fd = fd;
-    epoll_ctl(epollfd, EPOLL_CTL_DEL, fd, &ev);
-}
-
-bool HttpConn::process_write(HTTP_CODE ret)
+bool HttpConn::ProcessWrite(HTTP_CODE ret)
 {
     ROUTES route;
     route.ProcessRequest(this);
-    response.Process();
+    response_.Process();
 
-    string str_header = response.GetHeader();
+    string str_header = response_.GetHeader();
 
     int n_write = -1;
 
-    if (response.type == T_CONTENT)
+    if (response_.type_ == T_CONTENT)
     {
-        string buf = str_header + response.content;
-        n_write = write(m_sockfd, buf.c_str(), buf.size());
-        assert(n_write > 0);
+        string buf = str_header + response_.content_;
+        n_write = write(client_sockfd_, buf.c_str(), buf.size());
     }
-    else if (response.type == T_FILE)
+    else if (response_.type_ == T_FILE)
     {
         std::ifstream infile;
         std::stringstream buffer;
 
-        infile.open(response.file_path);
+        infile.open(response_.file_path_);
 
         buffer << infile.rdbuf();
         std::string contents(buffer.str());
@@ -98,47 +81,29 @@ bool HttpConn::process_write(HTTP_CODE ret)
         infile.close();
 
         string buf = str_header + contents;
-        n_write = write(m_sockfd, buf.c_str(), buf.size());
-        assert(n_write > 0);
+        n_write = write(client_sockfd_, buf.c_str(), buf.size());
+        //assert(n_write > 0);
     }
 
     if (n_write < 0)
     {
+        printf("socket=%d,n_write=%d\n", client_sockfd_, n_write);
         Log("client close,errno=EINTR");
-        delete_event(m_epollfd, m_sockfd, EPOLLIN);
-        close(m_sockfd);
+        Utils::DeleteEvent(epollfd_, client_sockfd_, EPOLLIN);
+        close(client_sockfd_);
+        //assert(n_write > 0);
     }
     else
     {
-        Log("response: OK");
+        Log("reqponse_: OK");
         Log(str_header);
-        Utils::ModifyFd(m_epollfd, m_sockfd, EPOLLIN);
+        //Utils::ModifyFd(epollfd_, client_sockfd, EPOLLIN);
     }
-    CloseConn();
-
-    close(m_sockfd);
+    ResetConn();
+    Utils::DeleteEvent(epollfd_, client_sockfd_, EPOLLIN);
+    close(client_sockfd_);
 
     return true;
-}
-
-HTTP_CODE HttpConn::parse_request_line(char *text)
-{
-    return GET_REQUEST;
-}
-
-HTTP_CODE HttpConn::parse_headers(char *text)
-{
-    return GET_REQUEST;
-}
-
-HTTP_CODE HttpConn::parse_content(char *text)
-{
-    return GET_REQUEST;
-}
-
-HTTP_CODE HttpConn::do_request()
-{
-    return GET_REQUEST;
 }
 
 // 处理请求
@@ -147,13 +112,13 @@ void HttpConn::Process()
     HTTP_CODE read_ret = ProcessRead();
     if (read_ret == NO_REQUEST)
     {
-        Utils::ModifyFd(m_epollfd, m_sockfd, EPOLLIN);
+        Utils::ModifyEvent(epollfd_, client_sockfd_, EPOLLIN);
         return;
     }
-    bool write_ret = process_write(read_ret);
+    bool write_ret = ProcessWrite(read_ret);
     if (!write_ret)
     {
-        CloseConn();
+        ResetConn();
     }
-    //Utils::ModifyFd(m_epollfd, m_sockfd, EPOLLOUT);
+    //Utils::ModifyFd(epollfd_, client_sockfd, EPOLLOUT);
 }

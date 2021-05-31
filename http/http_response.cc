@@ -28,7 +28,7 @@ void HttpResponse::Process()
 {
     CheckFile();
     SetType();
-    Date = GetDate();
+    date_ = GetDate();
     SetContentLength();
 }
 
@@ -66,64 +66,64 @@ Location: https://fin.oneneko.com/login?next=%2F
 Connection: keep-alive
 Vary: Cookie
 */
-    string header = protocol + " " + GetStatusCode(response_code) + "\r\n";
-    header += "Server: " + Server + "\r\n";
-    header += "Date: " + Date + "\r\n";
-    header += "Content-Type: " + Content_Type + "\r\n";
-    if (Content_Length != 0)
+    string header = protocol_ + " " + GetStatusCode(response_code_) + "\r\n";
+    header += "Server: " + server_ + "\r\n";
+    header += "Date: " + date_ + "\r\n";
+    header += "Content-Type: " + content_type_ + "\r\n";
+    if (content_length_ != 0)
     {
-        header += "Content-Length: " + to_string(Content_Length) + "\r\n";
+        header += "Content-Length: " + to_string(content_length_) + "\r\n";
     }
-    header += "Connection: " + Connection + "\r\n";
+    header += "Connection: " + connection_ + "\r\n";
     header += "\r\n";
 
     return header;
 }
 void HttpResponse::CheckFile()
 {
-    if (file_path == "")
+    if (file_path_ == "")
     {
         return;
     }
 
-    auto config = Config::get_instance();
-    file_path = config->DIR_PATH + file_path;
+    auto config = Config::GetInstance();
+    file_path_ = config->DIR_PATH + file_path_;
 
     //是否存在
-    int res = access(file_path.c_str(), F_OK);
+    int res = access(file_path_.c_str(), F_OK);
     if (res != 0)
     {
-        response_code = 404;
+        response_code_ = 404;
         return;
     }
 
     //是否可读
-    res = access(file_path.c_str(), R_OK);
+    res = access(file_path_.c_str(), R_OK);
     if (res != 0)
     {
-        response_code = 403;
+        response_code_ = 403;
         return;
     }
 
     //获取属性
     struct stat st;
-    stat(file_path.c_str(), &st);
+    stat(file_path_.c_str(), &st);
 
     if (S_ISDIR(st.st_mode))
     {
-        response_code = 404;
+        response_code_ = 404;
         return;
     }
 
-    response_code = 200;
+    response_code_ = 200;
 
-    Content_Length = st.st_size;
-    type = T_FILE;
+    content_length_ = st.st_size;
+    type_ = T_FILE;
 }
 
 void HttpResponse::SetContentLength()
 {
-    switch (type)
+    switch (type_)
     {
     case T_FILE:
     {
@@ -131,7 +131,7 @@ void HttpResponse::SetContentLength()
     }
     case T_CONTENT:
     {
-        Content_Length = content.length();
+        content_length_ = content_.length();
         break;
     }
     }
@@ -139,25 +139,25 @@ void HttpResponse::SetContentLength()
 
 void HttpResponse::SetType()
 {
-    if (response_code < 100 || response_code >= 300)
+    if (response_code_ < 100 || response_code_ >= 300)
     {
-        if (type < 0)
+        if (type_ < 0)
         {
-            type = T_CONTENT;
-            content = to_string(response_code);
+            type_ = T_CONTENT;
+            content_ = to_string(response_code_);
         }
     }
 }
 
 void HttpResponse::Clear()
 {
-    response_code = 200;
-    Date.clear();
-    Content_Type.clear();
-    Content_Length = 0;
-    Connection = "keep-alive";
+    response_code_ = 200;
+    date_.clear();
+    content_type_.clear();
+    content_length_ = 0;
+    connection_ = "keep-alive";
 
-    type = -1;
-    file_path.clear();
-    content.clear();
+    type_ = -1;
+    file_path_.clear();
+    content_.clear();
 }

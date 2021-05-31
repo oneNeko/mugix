@@ -22,53 +22,33 @@
 
 #include "../log/log.h"
 #include "../routes/routes.h"
-#include "mgx_epoll.h"
 #include "../config/config.h"
 #include "../http/http_conn.h"
 #include "../http/http_response.h"
+#include "../utils/utils.h"
 
-HttpServer::HttpServer() : server_port(50001), is_run(false)
+HttpServer::HttpServer() : server_port_(50001)
 {
-    users = new HttpConn[k_MAX_FD];
+    users_ = new HttpConn[k_MAX_FD];
 }
 
 HttpServer::~HttpServer()
 {
 }
 
+// 服务器初始化
 void HttpServer::Init()
 {
-    auto config = Config::get_instance();
+    // 获取配置
+    auto config = Config::GetInstance();
+    server_port_ = config->PORT;
 
-    server_port = config->PORT;
-}
-
-void AddEvent(int epollfd, int fd, int state)
-{
-    struct epoll_event event;
-    event.events = state;
-    event.data.fd = fd;
-    epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &event);
-}
-
-void DeleteEvent(int epollfd, int fd, int state)
-{
-    struct epoll_event ev;
-    ev.events = state;
-    ev.data.fd = fd;
-    epoll_ctl(epollfd, EPOLL_CTL_DEL, fd, &ev);
-}
-
-void modify_event(int epollfd, int fd, int state)
-{
-    struct epoll_event ev;
-    ev.events = state;
-    ev.data.fd = fd;
-    epoll_ctl(epollfd, EPOLL_CTL_MOD, fd, &ev);
+    // 创建线程池
+    InitThreadPool();
 }
 
 // 处理新连接
-bool HttpServer::dealclientdata(int listen_fd)
+bool HttpServer::ProcessNewClient(int listen_fd)
 {
     struct sockaddr_in client_address;
     socklen_t client_addrlength = sizeof(client_address);
@@ -80,12 +60,12 @@ bool HttpServer::dealclientdata(int listen_fd)
         return false;
     }
     Log("new client!  " + string(inet_ntoa(client_address.sin_addr)) + ":" + to_string(client_address.sin_port));
-    AddEvent(m_epoll_fd, connfd, EPOLLIN);
+    Utils::AddEvent(epollfd_, connfd, EPOLLIN);
     return true;
 }
 
 // 从socket缓冲区读取数据
-void HttpServer::dealwithread(int sockfd)
+void HttpServer::ProcessRead(int sockfd)
 {
     char buf[2048];
     int n = recv(sockfd, buf, sizeof(buf), 0);
@@ -93,19 +73,19 @@ void HttpServer::dealwithread(int sockfd)
     if (n < 0)
     {
         Log("recv error");
-        DeleteEvent(m_epoll_fd, sockfd, EPOLLIN);
+        Utils::DeleteEvent(epollfd_, sockfd, EPOLLIN);
         close(sockfd);
     }
     else if (n == 0 && errno == EINTR)
     {
         Log("client close,errno=EINTR");
-        DeleteEvent(m_epoll_fd, sockfd, EPOLLIN);
+        Utils::DeleteEvent(epollfd_, sockfd, EPOLLIN);
         close(sockfd);
     }
     else if (n == 0)
     {
         Log("client close");
-        DeleteEvent(m_epoll_fd, sockfd, EPOLLIN);
+        Utils::DeleteEvent(epollfd_, sockfd, EPOLLIN);
         close(sockfd);
     }
     else
@@ -113,41 +93,41 @@ void HttpServer::dealwithread(int sockfd)
         Log(buf);
         if (n != sizeof(buf))
         {
-            users[sockfd].request_text += buf;
-            users[sockfd].m_sockfd=sockfd;
-            m_pool->Append(users + sockfd);
-            //modify_event(m_epoll_fd, sockfd, EPOLLOUT);
+            users_[sockfd].request_text_ += buf;
+            users_[sockfd].client_sockfd_=sockfd;
+            pool_->Append(users_ + sockfd);
+            //Utils::ModifyEvent(epollfd_, sockfd, EPOLLOUT);
         }
         else
         {
-            modify_event(m_epoll_fd, sockfd, EPOLLIN);
+            Utils::ModifyEvent(epollfd_, sockfd, EPOLLIN);
         }
     }
 }
 
 // 向socket缓冲区写入数据
-void HttpServer::dealwithwrite(int sockfd)
+void HttpServer::ProcessWrite(int sockfd)
 {
-    auto response = users[sockfd].response;
+    auto response = users_[sockfd].response_;
     string str_header = response.GetHeader();
 
     int n_write = -1;
 
-    if (response.type == T_CONTENT)
+    if (response.type_ == T_CONTENT)
     {
-        string buf = str_header + response.content;
+        string buf = str_header + response.content_;
         n_write = write(sockfd, buf.c_str(), buf.size());
     }
-    else if (response.type == T_FILE)
+    else if (response.type_ == T_FILE)
     {
         string buf = str_header;
         n_write = write(sockfd, buf.c_str(), buf.size());
         assert(n_write > 0);
 
         // 发送文件
-        int file_fd = open(response.file_path.c_str(), O_RDONLY);
+        int file_fd = open(response.file_path_.c_str(), O_RDONLY);
 
-        n_write = sendfile(sockfd, file_fd, NULL, response.Content_Length);
+        n_write = sendfile(sockfd, file_fd, NULL, response.content_length_);
 
         assert(n_write > 0);
     }
@@ -155,62 +135,62 @@ void HttpServer::dealwithwrite(int sockfd)
     if (n_write < 0)
     {
         Log("client close,errno=EINTR");
-        DeleteEvent(m_epoll_fd, sockfd, EPOLLIN);
+        Utils::DeleteEvent(epollfd_, sockfd, EPOLLIN);
         close(sockfd);
     }
     else
     {
         Log("response: OK");
         Log(str_header);
-        modify_event(m_epoll_fd, sockfd, EPOLLIN);
+        Utils::ModifyEvent(epollfd_, sockfd, EPOLLIN);
     }
-    users[sockfd].CloseConn();
+    users_[sockfd].ResetConn();
 }
 
 // 创建线程池
 void HttpServer::InitThreadPool()
 {
-    m_pool = new ThreadPool<HttpConn>(m_thread_num, max_requests);
+    pool_ = new ThreadPool<HttpConn>(thread_num_, max_requests_);
 }
 
 // 启动监听
 int HttpServer::EventListen()
 {
     // 启动监听套接字
-    m_listen_fd = socket(AF_INET, SOCK_STREAM, 0);
-    assert(m_listen_fd >= 0);
+    server_listen_socketfd_ = socket(AF_INET, SOCK_STREAM, 0);
+    assert(server_listen_socketfd_ >= 0);
 
     sockaddr_in addr;
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(server_port);
+    addr.sin_port = htons(server_port_);
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
     int flag = 1;
-    setsockopt(m_listen_fd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
+    setsockopt(server_listen_socketfd_, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
 
-    int ret = bind(m_listen_fd, (sockaddr *)&addr, sizeof(addr));
+    int ret = bind(server_listen_socketfd_, (sockaddr *)&addr, sizeof(addr));
     assert(ret >= 0);
 
-    ret = listen(m_listen_fd, 1000);
+    ret = listen(server_listen_socketfd_, 1000);
     assert(ret >= 0);
-    Log("listening at " + addr.sin_addr.s_addr + to_string(server_port));
+    Log("listening at " + addr.sin_addr.s_addr + to_string(server_port_));
 
     // epoll
-    m_epoll_fd = epoll_create(5);
-    assert(m_epoll_fd >= 0);
+    epollfd_ = epoll_create(5);
+    assert(epollfd_ >= 0);
 
-    AddEvent(m_epoll_fd, m_listen_fd, EPOLLIN);
-    HttpConn::m_epollfd = m_epoll_fd;
+    Utils::AddEvent(epollfd_, server_listen_socketfd_, EPOLLIN);
+    HttpConn::epollfd_ = epollfd_;
 
     return 0;
 }
 
-// 主循环
+// 事件主循环
 void HttpServer::EventLoop()
 {
     while (true)
     {
-        int number = epoll_wait(m_epoll_fd, events, k_MAX_EVENT_NUMBER, -1);
+        int number = epoll_wait(epollfd_, events_, k_MAX_EVENT_NUMBER, -1);
         if (number < 0 && errno != EINTR)
         {
             Log("epoll failure");
@@ -219,27 +199,27 @@ void HttpServer::EventLoop()
 
         for (int i = 0; i < number; i++)
         {
-            int sockfd = events[i].data.fd;
+            int sockfd = events_[i].data.fd;
 
             //处理新到的客户连接
-            if (sockfd == m_listen_fd)
+            if (sockfd == server_listen_socketfd_)
             {
-                dealclientdata(sockfd);
+                ProcessNewClient(sockfd);
             }
-            else if (events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR))
+            else if (events_[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR))
             {
                 Log("client close");
-                DeleteEvent(m_epoll_fd, sockfd, EPOLLIN);
+                Utils::DeleteEvent(epollfd_, sockfd, EPOLLIN);
                 close(sockfd);
             }
             //处理客户连接上接收到的数据
-            else if (events[i].events & EPOLLIN)
+            else if (events_[i].events & EPOLLIN)
             {
-                dealwithread(sockfd);
+                ProcessRead(sockfd);
             }
-            else if (events[i].events & EPOLLOUT)
+            else if (events_[i].events & EPOLLOUT)
             {
-                dealwithwrite(sockfd);
+                ProcessWrite(sockfd);
             }
         }
     }
