@@ -15,7 +15,9 @@ std::vector<std::string> Utils::SplitString(std::string source, std::string patt
         right = int(source.find(pattern, left));
         if (right == -1)
         {
-            result.push_back(source.substr(left));
+            if(source.substr(left)!=""){
+                result.push_back(source.substr(left));
+            }
             break;
         }
         result.push_back(source.substr(left, right - left));

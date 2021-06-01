@@ -33,9 +33,15 @@ void HttpConn::Init()
 
 void HttpConn::ResetConn(bool real_close)
 {
-    request_text_ = "";
+    request_text_.clear();
     request_.Clear();
     response_.Clear();
+    if (real_close)
+    {
+        Log("Reset Conn: client close");
+        Utils::DeleteEvent(epollfd_, client_sockfd_, EPOLLIN);
+        close(client_sockfd_);
+    }
 }
 
 HTTP_CODE HttpConn::ProcessRead()
@@ -82,28 +88,9 @@ bool HttpConn::ProcessWrite(HTTP_CODE ret)
 
         string buf = str_header + contents;
         n_write = write(client_sockfd_, buf.c_str(), buf.size());
-        //assert(n_write > 0);
     }
 
-    if (n_write < 0)
-    {
-        printf("socket=%d,n_write=%d\n", client_sockfd_, n_write);
-        Log("client close,errno=EINTR");
-        Utils::DeleteEvent(epollfd_, client_sockfd_, EPOLLIN);
-        close(client_sockfd_);
-        //assert(n_write > 0);
-    }
-    else
-    {
-        Log("reqponse_: OK");
-        Log(str_header);
-        //Utils::ModifyFd(epollfd_, client_sockfd, EPOLLIN);
-    }
-    ResetConn();
-    Utils::DeleteEvent(epollfd_, client_sockfd_, EPOLLIN);
-    close(client_sockfd_);
-
-    return true;
+    return n_write > 0;
 }
 
 // 处理请求
@@ -112,7 +99,7 @@ void HttpConn::Process()
     HTTP_CODE read_ret = ProcessRead();
     if (read_ret == NO_REQUEST)
     {
-        Utils::ModifyEvent(epollfd_, client_sockfd_, EPOLLIN);
+        Utils::ModifyEvent(epollfd_, client_sockfd_, EPOLLIN | EPOLLONESHOT);
         return;
     }
     bool write_ret = ProcessWrite(read_ret);
@@ -120,5 +107,15 @@ void HttpConn::Process()
     {
         ResetConn();
     }
-    //Utils::ModifyFd(epollfd_, client_sockfd, EPOLLOUT);
+    else if (request_.http_protocol_ == "HTTP/1.0")
+    {
+        ResetConn();
+    }
+    else
+    {
+        // http1.1协议默认保持长连接，需要将epoll事件添加回来
+        Log("长连接");
+        ResetConn(false);
+        Utils::ModifyEvent(epollfd_, client_sockfd_, EPOLLIN | EPOLLONESHOT);
+    }
 }

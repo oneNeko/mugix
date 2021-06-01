@@ -60,7 +60,7 @@ bool HttpServer::ProcessNewClient(int listen_fd)
         return false;
     }
     Log("new client!  " + string(inet_ntoa(client_address.sin_addr)) + ":" + to_string(client_address.sin_port));
-    Utils::AddEvent(epollfd_, connfd, EPOLLIN);
+    Utils::AddEvent(epollfd_, connfd, EPOLLIN | EPOLLONESHOT);
     return true;
 }
 
@@ -73,35 +73,20 @@ void HttpServer::ProcessRead(int sockfd)
     if (n < 0)
     {
         Log("recv error");
-        Utils::DeleteEvent(epollfd_, sockfd, EPOLLIN);
-        close(sockfd);
-    }
-    else if (n == 0 && errno == EINTR)
-    {
-        Log("client close,errno=EINTR");
-        Utils::DeleteEvent(epollfd_, sockfd, EPOLLIN);
-        close(sockfd);
+        users_[sockfd].ResetConn();
     }
     else if (n == 0)
     {
         Log("client close");
-        Utils::DeleteEvent(epollfd_, sockfd, EPOLLIN);
-        close(sockfd);
+        users_[sockfd].ResetConn();
     }
     else
     {
         Log(buf);
-        if (n != sizeof(buf))
-        {
-            users_[sockfd].request_text_ += buf;
-            users_[sockfd].client_sockfd_=sockfd;
-            pool_->Append(users_ + sockfd);
-            //Utils::ModifyEvent(epollfd_, sockfd, EPOLLOUT);
-        }
-        else
-        {
-            Utils::ModifyEvent(epollfd_, sockfd, EPOLLIN);
-        }
+
+        users_[sockfd].request_text_ = buf;
+        users_[sockfd].client_sockfd_ = sockfd;
+        pool_->Append(users_ + sockfd);
     }
 }
 
@@ -208,17 +193,19 @@ void HttpServer::EventLoop()
             }
             else if (events_[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR))
             {
-                Log("client close");
+                Log("epoll client close");
                 Utils::DeleteEvent(epollfd_, sockfd, EPOLLIN);
                 close(sockfd);
             }
             //处理客户连接上接收到的数据
             else if (events_[i].events & EPOLLIN)
             {
+                Log("epoll in");
                 ProcessRead(sockfd);
             }
             else if (events_[i].events & EPOLLOUT)
             {
+                Log("epoll in");
                 ProcessWrite(sockfd);
             }
         }
