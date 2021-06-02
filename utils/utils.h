@@ -18,6 +18,9 @@ public:
     static void ModifyEvent(int epollfd, int fd, int state);
 
     static std::string ReadFile(std::string path);
+
+    // 设置非阻塞
+    static void SetNonblock(int fd);
 };
 
 #endif

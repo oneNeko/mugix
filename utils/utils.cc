@@ -1,6 +1,7 @@
 #include <unistd.h>
 #include <iostream>
 #include <fstream>
+#include <fcntl.h>
 #include <sstream>
 
 #include "utils.h"
@@ -15,7 +16,8 @@ std::vector<std::string> Utils::SplitString(std::string source, std::string patt
         right = int(source.find(pattern, left));
         if (right == -1)
         {
-            if(source.substr(left)!=""){
+            if (source.substr(left) != "")
+            {
                 result.push_back(source.substr(left));
             }
             break;
@@ -66,4 +68,10 @@ std::string Utils::ReadFile(std::string path)
     infile.close();
 
     return contents;
+}
+
+void Utils::SetNonblock(int fd)
+{
+    int flags = fcntl(fd, F_GETFL, 0);
+    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }

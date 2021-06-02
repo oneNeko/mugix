@@ -61,6 +61,8 @@ bool HttpServer::ProcessNewClient(int listen_fd)
     }
     Log("new client!  " + string(inet_ntoa(client_address.sin_addr)) + ":" + to_string(client_address.sin_port));
     Utils::AddEvent(epollfd_, connfd, EPOLLIN | EPOLLONESHOT);
+    Utils::SetNonblock(connfd);
+
     return true;
 }
 
@@ -159,6 +161,8 @@ int HttpServer::EventListen()
     ret = listen(server_listen_socketfd_, 1000);
     assert(ret >= 0);
     Log("listening at " + addr.sin_addr.s_addr + to_string(server_port_));
+
+    Utils::SetNonblock(server_listen_socketfd_);
 
     // epoll
     epollfd_ = epoll_create(5);
