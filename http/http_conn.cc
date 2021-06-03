@@ -119,10 +119,11 @@ void HttpConn::Process()
     {
         if (!ReadFromSocket())
         {
+            ResetConn();
             return;
         }
         ProcessRead();
-        Utils::ModifyEvent(epollfd_, client_sockfd_, EPOLLOUT | EPOLLONESHOT);
+        Utils::ModifyEvent(epollfd_, client_sockfd_, EPOLLOUT | EPOLLONESHOT | epoll_trig_mode_);
         return;
     }
     else if (rw_state == 2)
@@ -142,7 +143,7 @@ void HttpConn::Process()
             // http1.1协议默认保持长连接，需要将epoll事件添加回来
             Log("长连接");
             ResetConn(false);
-            Utils::ModifyEvent(epollfd_, client_sockfd_, EPOLLIN | EPOLLONESHOT);
+            Utils::ModifyEvent(epollfd_, client_sockfd_, EPOLLIN | EPOLLONESHOT | epoll_trig_mode_);
         }
     }
 }

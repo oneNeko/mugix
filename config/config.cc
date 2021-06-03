@@ -31,7 +31,7 @@ Config::~Config()
 void Config::ParseConfig(int argc, char *argv[])
 {
     int opt;
-    const char *str = "p:d:";
+    const char *str = "p:d:m:l:";
     while ((opt = getopt(argc, argv, str)) != -1)
     {
         switch (opt)
@@ -44,6 +44,16 @@ void Config::ParseConfig(int argc, char *argv[])
         case 'd':
         {
             DIR_PATH = optarg;
+            break;
+        }
+        case 'm':
+        {
+            epoll_trige_mode_ = atoi(optarg);
+            break;
+        }
+        case 'l':
+        {
+            log_setting_ = atoi(optarg);
             break;
         }
         }

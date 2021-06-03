@@ -9,5 +9,11 @@ cmake ..
 make install
 
 // 运行，默认监听50001
-./build/mugix -p 50001 -d /home/neko/mugix/html/
+// -p   端口
+// -d   网站根目录
+// -m   epoll触发模式(listenfd+connfd)
+// LT+LT LT+ET ET+LT ET+ET
+// 0     1     2     3
+
+./build/mugix -p 50001 -d /home/neko/mugix/html/ -m 0
 ```

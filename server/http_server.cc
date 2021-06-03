@@ -42,6 +42,33 @@ void HttpServer::Init()
     // 获取配置
     auto config = Config::GetInstance();
     server_port_ = config->PORT;
+    switch (config->epoll_trige_mode_)
+    {
+    case 0:
+    {
+        epoll_trig_mode_listen_ = LT;
+        epoll_trig_mode_conn_ = LT;
+        break;
+    }
+    case 1:
+    {
+        epoll_trig_mode_listen_ = LT;
+        epoll_trig_mode_conn_ = ET;
+        break;
+    }
+    case 2:
+    {
+        epoll_trig_mode_listen_ = ET;
+        epoll_trig_mode_conn_ = LT;
+        break;
+    }
+    case 3:
+    {
+        epoll_trig_mode_listen_ = ET;
+        epoll_trig_mode_conn_ = ET;
+        break;
+    }
+    }
 
     // 创建线程池
     InitThreadPool();
@@ -50,19 +77,45 @@ void HttpServer::Init()
 // 处理新连接
 bool HttpServer::ProcessNewClient(int listen_fd)
 {
-    struct sockaddr_in client_address;
-    socklen_t client_addrlength = sizeof(client_address);
-
-    int connfd = accept(listen_fd, (struct sockaddr *)&client_address, &client_addrlength);
-
-    if (connfd < 0)
+    if (epoll_trig_mode_listen_ == LT)
     {
-        return false;
+        struct sockaddr_in client_address;
+        socklen_t client_addrlength = sizeof(client_address);
+
+        int connfd = accept(listen_fd, (struct sockaddr *)&client_address, &client_addrlength);
+
+        if (connfd < 0)
+        {
+            return false;
+        }
+        Log("new client!  " + string(inet_ntoa(client_address.sin_addr)) + ":" + to_string(ntohs(client_address.sin_port)));
+        Utils::AddEvent(epollfd_, connfd, EPOLLIN | EPOLLONESHOT);
+        Utils::ModifyEvent(epollfd_, listen_fd, EPOLLIN | EPOLLONESHOT);
+        Utils::SetNonblock(connfd);
+        users_[connfd].client_sockfd_ = connfd;
+        users_[connfd].epoll_trig_mode_ = 0;
     }
-    Log("new client!  " + string(inet_ntoa(client_address.sin_addr)) + ":" + to_string(client_address.sin_port));
-    Utils::AddEvent(epollfd_, connfd, EPOLLIN | EPOLLONESHOT);
-    Utils::SetNonblock(connfd);
-    users_[connfd].client_sockfd_ = connfd;
+    else
+    {
+        while (true)
+        {
+            struct sockaddr_in client_address;
+            socklen_t client_addrlength = sizeof(client_address);
+
+            int connfd = accept(listen_fd, (struct sockaddr *)&client_address, &client_addrlength);
+
+            if (connfd < 0)
+            {
+                Utils::ModifyEvent(epollfd_, listen_fd, EPOLLIN | EPOLLET | EPOLLONESHOT);
+                return false;
+            }
+            Log("new client!  " + string(inet_ntoa(client_address.sin_addr)) + ":" + to_string(ntohs(client_address.sin_port)));
+            Utils::AddEvent(epollfd_, connfd, EPOLLIN | EPOLLONESHOT | epoll_trig_mode_conn_);
+            Utils::SetNonblock(connfd);
+            users_[connfd].client_sockfd_ = connfd;
+            users_[connfd].epoll_trig_mode_ = EPOLLET;
+        }
+    }
 
     return true;
 }
@@ -169,7 +222,8 @@ int HttpServer::EventListen()
     epollfd_ = epoll_create(5);
     assert(epollfd_ >= 0);
 
-    Utils::AddEvent(epollfd_, server_listen_socketfd_, EPOLLIN);
+    Utils::AddEvent(epollfd_, server_listen_socketfd_, EPOLLIN | EPOLLRDHUP | EPOLLONESHOT | epoll_trig_mode_listen_);
+
     HttpConn::epollfd_ = epollfd_;
 
     return 0;

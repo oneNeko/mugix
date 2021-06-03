@@ -20,6 +20,12 @@ public:
     //指定文件目录
     std::string DIR_PATH;
 
+    //epoll触发模式
+    int epoll_trige_mode_ = 0;
+
+    //日志模式
+    int log_setting_ = 0;
+
     std::map<std::string, std::string> content_type_;
 };
 #endif

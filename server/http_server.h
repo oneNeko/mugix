@@ -16,7 +16,15 @@ const int k_MAX_EPOLL = 1000;
 class HttpServer
 {
 private:
+    enum EPOLL_TRIG_MODE
+    {
+        LT = 0,
+        ET = EPOLLET
+    };
+
     int epollfd_;
+    int epoll_trig_mode_listen_ = LT;
+    int epoll_trig_mode_conn_ = LT;
     int server_listen_socketfd_;
     int server_port_;
 

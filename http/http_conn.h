@@ -45,6 +45,7 @@ public:
     int client_sockfd_;
     sockaddr_in client_address_;
     string request_text_;
+    int epoll_trig_mode_;
     static int epollfd_;
     static int user_count_;
 
