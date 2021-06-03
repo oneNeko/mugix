@@ -56,17 +56,36 @@ HTTP_CODE HttpConn::ProcessRead()
 
     HTTP_CODE res = request_.ParseHeader(header);
 
-    return res;
-}
-
-bool HttpConn::ProcessWrite(HTTP_CODE ret)
-{
     ROUTES route;
     route.ProcessRequest(this);
+
+    return res;
+}
+HTTP_CODE HttpConn::ProcessWrite()
+{
     response_.Process();
 
-    string str_header = response_.GetHeader();
+    str_header = response_.GetHeader();
+    return GET_REQUEST;
+}
+bool HttpConn::ReadFromSocket()
+{
+    char buf[2048];
+    int n = recv(client_sockfd_, buf, sizeof(buf), 0);
 
+    if (n <= 0)
+    {
+        return false;
+    }
+    else
+    {
+        Log(buf);
+        request_text_ = buf;
+    }
+    return true;
+}
+bool HttpConn::WriteToSocket()
+{
     int n_write = -1;
 
     if (response_.type_ == T_CONTENT)
@@ -96,26 +115,34 @@ bool HttpConn::ProcessWrite(HTTP_CODE ret)
 // 处理请求
 void HttpConn::Process()
 {
-    HTTP_CODE read_ret = ProcessRead();
-    if (read_ret == NO_REQUEST)
+    if (rw_state == 1)
     {
-        Utils::ModifyEvent(epollfd_, client_sockfd_, EPOLLIN | EPOLLONESHOT);
+        if (!ReadFromSocket())
+        {
+            return;
+        }
+        ProcessRead();
+        Utils::ModifyEvent(epollfd_, client_sockfd_, EPOLLOUT | EPOLLONESHOT);
         return;
     }
-    bool write_ret = ProcessWrite(read_ret);
-    if (!write_ret)
+    else if (rw_state == 2)
     {
-        ResetConn();
-    }
-    else if (request_.http_protocol_ == "HTTP/1.0")
-    {
-        ResetConn();
-    }
-    else
-    {
-        // http1.1协议默认保持长连接，需要将epoll事件添加回来
-        Log("长连接");
-        ResetConn(false);
-        Utils::ModifyEvent(epollfd_, client_sockfd_, EPOLLIN | EPOLLONESHOT);
+        ProcessWrite();
+        if (!WriteToSocket())
+        {
+            return;
+        }
+
+        if (request_.http_protocol_ == "HTTP/1.0")
+        {
+            ResetConn();
+        }
+        else
+        {
+            // http1.1协议默认保持长连接，需要将epoll事件添加回来
+            Log("长连接");
+            ResetConn(false);
+            Utils::ModifyEvent(epollfd_, client_sockfd_, EPOLLIN | EPOLLONESHOT);
+        }
     }
 }

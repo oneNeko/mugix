@@ -62,6 +62,7 @@ bool HttpServer::ProcessNewClient(int listen_fd)
     Log("new client!  " + string(inet_ntoa(client_address.sin_addr)) + ":" + to_string(client_address.sin_port));
     Utils::AddEvent(epollfd_, connfd, EPOLLIN | EPOLLONESHOT);
     Utils::SetNonblock(connfd);
+    users_[connfd].client_sockfd_ = connfd;
 
     return true;
 }
@@ -205,12 +206,16 @@ void HttpServer::EventLoop()
             else if (events_[i].events & EPOLLIN)
             {
                 Log("epoll in");
-                ProcessRead(sockfd);
+                //ProcessRead(sockfd);
+                users_[sockfd].rw_state = 1;
+                pool_->Append(users_ + sockfd);
             }
             else if (events_[i].events & EPOLLOUT)
             {
-                Log("epoll in");
-                ProcessWrite(sockfd);
+                Log("epoll out");
+                //ProcessWrite(sockfd);
+                users_[sockfd].rw_state = 2;
+                pool_->Append(users_ + sockfd);
             }
         }
     }

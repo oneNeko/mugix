@@ -26,14 +26,22 @@ public:
 
 private:
     void Init();
+
+    // 处理数据
     HTTP_CODE ProcessRead();
-    bool ProcessWrite(HTTP_CODE ret);
+    HTTP_CODE ProcessWrite();
+    bool ReadFromSocket();
+    bool WriteToSocket();
+
+    // 解析请求数据
     HTTP_CODE ParseRequestLine(char *text);
     HTTP_CODE ParseHeaders(char *text);
     HTTP_CODE ParseContent(char *text);
     HTTP_CODE DoRequest();
-    
+
 public:
+    string str_header;
+    int rw_state;
     int client_sockfd_;
     sockaddr_in client_address_;
     string request_text_;
