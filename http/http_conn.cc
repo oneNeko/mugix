@@ -131,6 +131,7 @@ void HttpConn::Process()
         ProcessWrite();
         if (!WriteToSocket())
         {
+            ResetConn();
             return;
         }
 

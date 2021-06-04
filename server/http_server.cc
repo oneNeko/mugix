@@ -90,10 +90,10 @@ bool HttpServer::ProcessNewClient(int listen_fd)
         }
         Log("new client!  " + string(inet_ntoa(client_address.sin_addr)) + ":" + to_string(ntohs(client_address.sin_port)));
         Utils::AddEvent(epollfd_, connfd, EPOLLIN | EPOLLONESHOT);
-        Utils::ModifyEvent(epollfd_, listen_fd, EPOLLIN | EPOLLONESHOT);
+        //Utils::ModifyEvent(epollfd_, listen_fd, EPOLLIN | EPOLLONESHOT);
         Utils::SetNonblock(connfd);
         users_[connfd].client_sockfd_ = connfd;
-        users_[connfd].epoll_trig_mode_ = 0;
+        users_[connfd].epoll_trig_mode_ = LT;
     }
     else
     {
@@ -110,7 +110,7 @@ bool HttpServer::ProcessNewClient(int listen_fd)
                 return false;
             }
             Log("new client!  " + string(inet_ntoa(client_address.sin_addr)) + ":" + to_string(ntohs(client_address.sin_port)));
-            Utils::AddEvent(epollfd_, connfd, EPOLLIN | EPOLLONESHOT | epoll_trig_mode_conn_);
+            Utils::AddEvent(epollfd_, connfd, EPOLLIN | EPOLLONESHOT | EPOLLET);
             Utils::SetNonblock(connfd);
             users_[connfd].client_sockfd_ = connfd;
             users_[connfd].epoll_trig_mode_ = EPOLLET;
@@ -222,7 +222,14 @@ int HttpServer::EventListen()
     epollfd_ = epoll_create(5);
     assert(epollfd_ >= 0);
 
-    Utils::AddEvent(epollfd_, server_listen_socketfd_, EPOLLIN | EPOLLRDHUP | EPOLLONESHOT | epoll_trig_mode_listen_);
+    if (epoll_trig_mode_listen_ == ET)
+    {
+        Utils::AddEvent(epollfd_, server_listen_socketfd_, EPOLLIN | EPOLLRDHUP | EPOLLONESHOT | epoll_trig_mode_listen_);
+    }
+    else
+    {
+        Utils::AddEvent(epollfd_, server_listen_socketfd_, EPOLLIN | EPOLLRDHUP);
+    }
 
     HttpConn::epollfd_ = epollfd_;
 
