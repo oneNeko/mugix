@@ -39,8 +39,14 @@ private:
     HTTP_CODE ParseContent(char *text);
     HTTP_CODE DoRequest();
 
+private:
+    // 文件相关
+    struct iovec iov[2];
+    char* file_address_;
+    int iv_count_;
+
 public:
-    string str_header;
+    char header_buf_[2048];
     int rw_state;
     int client_sockfd_;
     sockaddr_in client_address_;

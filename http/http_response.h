@@ -102,7 +102,7 @@ public:
     const string server_ = "mugix/0.1";
     string date_ = "";
     string content_type_;
-    int content_length_;
+    long long content_length_;
     string connection_ = "keep-alive";
 
     int type_ = -1;

@@ -1,8 +1,11 @@
 #include <assert.h>
+#include <cstring>
 #include <fcntl.h>
 #include <fstream>
 #include <iostream>
 #include <istream>
+#include <sys/mman.h>
+#include <sys/uio.h>
 #include <ostream>
 #include <sstream>
 #include <sys/sendfile.h>
@@ -33,6 +36,7 @@ void HttpConn::Init()
 
 void HttpConn::ResetConn(bool real_close)
 {
+    memset(header_buf_, 0, sizeof(header_buf_));
     request_text_.clear();
     request_.Clear();
     response_.Clear();
@@ -64,8 +68,22 @@ HTTP_CODE HttpConn::ProcessRead()
 HTTP_CODE HttpConn::ProcessWrite()
 {
     response_.Process();
+    strcpy(header_buf_, response_.GetHeader().c_str());
 
-    str_header = response_.GetHeader();
+    iov[0].iov_base = header_buf_;
+    iov[0].iov_len = strlen(header_buf_);
+
+    /*if (response_.type_ == T_FILE)
+    {
+        int fd = open(response_.file_path_.c_str(), O_RDONLY);
+        file_address_ = (char *)mmap(0, response_.content_length_, PROT_READ, MAP_PRIVATE, fd, 0);
+
+        iov[1].iov_base = file_address_;
+        iov[1].iov_len = response_.content_length_;
+        iv_count_ = 2;
+        close(fd);
+    }*/
+
     return GET_REQUEST;
 }
 bool HttpConn::ReadFromSocket()
@@ -90,23 +108,34 @@ bool HttpConn::WriteToSocket()
 
     if (response_.type_ == T_CONTENT)
     {
-        string buf = str_header + response_.content_;
+        string buf = header_buf_ + response_.content_;
         n_write = write(client_sockfd_, buf.c_str(), buf.size());
     }
     else if (response_.type_ == T_FILE)
     {
-        std::ifstream infile;
-        std::stringstream buffer;
-
-        infile.open(response_.file_path_);
-
-        buffer << infile.rdbuf();
-        std::string contents(buffer.str());
-
-        infile.close();
-
-        string buf = str_header + contents;
+        string buf = header_buf_;
         n_write = write(client_sockfd_, buf.c_str(), buf.size());
+
+        int ret = 0, left = response_.content_length_;
+        int fd = open(response_.file_path_.c_str(), O_RDONLY);
+
+        while (left > 0)
+        {
+            ret = sendfile(client_sockfd_, fd, NULL, left);
+            if (ret < 0 && errno == EAGAIN)
+            {
+                continue;
+            }
+            else if (ret == 0)
+            {
+                break;
+            }
+            else
+            {
+                left -= ret;
+            }
+        }
+        close(fd);
     }
 
     return n_write > 0;
