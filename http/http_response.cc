@@ -66,18 +66,23 @@ Location: https://fin.oneneko.com/login?next=%2F
 Connection: keep-alive
 Vary: Cookie
 */
-    string header = protocol_ + " " + GetStatusCode(206) + "\r\n";
+    string header = protocol_ + " " + GetStatusCode(response_code_) + "\r\n";
     header += "Server: " + server_ + "\r\n";
     header += "Date: " + date_ + "\r\n";
     header += "Content-Type: " + content_type_ + "\r\n";
-    if (content_length_ != 0)
+    header += "Content-Length: " + to_string(content_length_) + "\r\n";
+    if (big_file_offset_left_ != -1)
     {
-        if (content_length_ > 100 * 1024)
+        header += "Content-Range: bytes " + to_string(big_file_offset_left_) + "-";
+        if (big_file_offset_right_ != -1)
         {
-            header += "Content-Length: " + to_string(content_length_) + "\r\n";
-            header += "Content-Range: bytes 0-" + to_string(100 * 1024) + "/" + to_string(content_length_) + "\r\n";
-            content_length_ = 100 * 1024;
+            header += to_string(big_file_offset_right_);
         }
+        else
+        {
+            header += to_string(min(big_file_offset_left_ + 100 * 1024, big_file_length_));
+        }
+        header += "/" + to_string(big_file_length_) + "\r\n";
     }
     header += "Connection: " + connection_ + "\r\n";
     header += "\r\n";
@@ -120,10 +125,22 @@ void HttpResponse::CheckFile()
         return;
     }
 
-    response_code_ = 200;
-
-    content_length_ = st.st_size;
-    type_ = T_FILE;
+    if (st.st_size > 100 * 1024)
+    {
+        response_code_ = 206;
+        type_ = T_BIG_FILE;
+        big_file_length_ = st.st_size;
+        if (big_file_offset_left_ == -1)
+        {
+            big_file_offset_left_ = 0;
+        }
+    }
+    else
+    {
+        response_code_ = 200;
+        content_length_ = st.st_size;
+        type_ = T_FILE;
+    }
 }
 
 void HttpResponse::SetContentLength()
@@ -137,6 +154,27 @@ void HttpResponse::SetContentLength()
     case T_CONTENT:
     {
         content_length_ = content_.length();
+        break;
+    }
+    case T_BIG_FILE:
+    {
+        if (big_file_offset_right_ == -1)
+        {
+            if (big_file_offset_left_ + 100 * 1024 > big_file_length_)
+            {
+                big_file_offset_right_ = big_file_length_-1;
+                content_length_ = big_file_length_ - big_file_offset_left_ ;
+            }
+            else
+            {
+                content_length_ = 100 * 1024;
+                big_file_offset_right_ = big_file_offset_left_ + content_length_;
+            }
+        }
+        else
+        {
+            content_length_ = big_file_offset_right_ - big_file_offset_left_ + 1;
+        }
         break;
     }
     }
@@ -165,4 +203,7 @@ void HttpResponse::Clear()
     type_ = -1;
     file_path_.clear();
     content_.clear();
+
+    big_file_offset_left_ = -1;
+    big_file_offset_right_ = -1;
 }

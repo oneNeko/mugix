@@ -37,20 +37,20 @@ void ROUTES::ProcessFile(HttpConn *conn)
     string file_type = conn->response_.file_path_.substr(conn->response_.file_path_.find_last_of(".") + 1);
     conn->response_.content_type_ = get_file_mime(file_type);
 
-    /*// 断点续传
-    if (conn->request_.header_params_.find("Content-Range") != conn->request_.header_params_.end())
+    // 断点续传
+    if (conn->request_.header_params_.find("Range") != conn->request_.header_params_.end())
     {
-        auto res = Utils::SplitString(conn->request_.header_params_["Content-Range"], "-");
+        auto res = Utils::SplitString(conn->request_.header_params_["Range"], "-");
         if (res.size() == 1)
         {
-            conn->response_.big_file_offset_left_ = atoi(res[0].c_str());
+            conn->response_.big_file_offset_left_ = atoi(res[0].substr(6).c_str());
         }
         else
         {
-            conn->response_.big_file_offset_left_ = atoi(res[0].c_str());
+            conn->response_.big_file_offset_left_ = atoi(res[0].substr(6).c_str());
             conn->response_.big_file_offset_right_ = atoi(res[1].c_str());
         }
-    }*/
+    }
 }
 
 void ROUTES::index(HttpConn *conn)

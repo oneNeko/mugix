@@ -266,14 +266,14 @@ void HttpServer::EventLoop()
             //处理客户连接上接收到的数据
             else if (events_[i].events & EPOLLIN)
             {
-                Log("epoll in");
+                //Log("epoll in");
                 //ProcessRead(sockfd);
                 users_[sockfd].rw_state = 1;
                 pool_->Append(users_ + sockfd);
             }
             else if (events_[i].events & EPOLLOUT)
             {
-                Log("epoll out");
+                //Log("epoll out");
                 //ProcessWrite(sockfd);
                 users_[sockfd].rw_state = 2;
                 pool_->Append(users_ + sockfd);

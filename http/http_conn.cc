@@ -115,17 +115,30 @@ bool HttpConn::WriteToSocket()
     {
         string buf = header_buf_;
         n_write = write(client_sockfd_, buf.c_str(), buf.size());
+        Log(buf);
+
+        int ret = 0, left = response_.content_length_;
+        int fd = open(response_.file_path_.c_str(), O_RDONLY);
+        ret = sendfile(client_sockfd_, fd, NULL, response_.content_length_);
+
+        close(fd);
+    }
+    else if (response_.type_ == T_BIG_FILE)
+    {
+        string buf = header_buf_;
+        n_write = write(client_sockfd_, buf.c_str(), buf.size());
+        Log(buf);
 
         int ret = 0, left = response_.content_length_;
         int fd = open(response_.file_path_.c_str(), O_RDONLY);
 
-        off_t off_set = 0;
+        off_t off_set = response_.big_file_offset_left_;
         int buf_length = 1024;
 
         assert(fd > 0);
         while (left > 0)
         {
-            ret = sendfile(client_sockfd_, fd, NULL, response_.content_length_);
+            ret = sendfile(client_sockfd_, fd, &off_set, response_.content_length_);
             //printf("client_sockfd_=%d,fd=%d,ret=%d,off_set=%ld\n", client_sockfd_, fd, ret, off_set);
             if (ret < 0 && errno == EAGAIN)
             {
@@ -138,7 +151,6 @@ bool HttpConn::WriteToSocket()
             else
             {
                 left -= ret;
-                off_set += ret;
             }
         }
         close(fd);
@@ -177,7 +189,6 @@ void HttpConn::Process()
         else
         {
             // http1.1协议默认保持长连接，需要将epoll事件添加回来
-            Log("长连接");
             ResetConn(false);
             Utils::ModifyEvent(epollfd_, client_sockfd_, EPOLLIN | EPOLLONESHOT | epoll_trig_mode_);
         }

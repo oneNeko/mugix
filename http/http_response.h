@@ -109,8 +109,9 @@ public:
     int type_ = -1;
     string file_path_;
     string content_;
-    int big_file_offset_left_;
-    int big_file_offset_right_;
+    int big_file_length_;
+    int big_file_offset_left_ = -1;
+    int big_file_offset_right_ = -1;
 
 private:
     void SetType();
