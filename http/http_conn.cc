@@ -119,9 +119,14 @@ bool HttpConn::WriteToSocket()
         int ret = 0, left = response_.content_length_;
         int fd = open(response_.file_path_.c_str(), O_RDONLY);
 
+        off_t off_set = 0;
+        int buf_length = 1024;
+
+        assert(fd > 0);
         while (left > 0)
         {
-            ret = sendfile(client_sockfd_, fd, NULL, left);
+            ret = sendfile(client_sockfd_, fd, NULL, response_.content_length_);
+            //printf("client_sockfd_=%d,fd=%d,ret=%d,off_set=%ld\n", client_sockfd_, fd, ret, off_set);
             if (ret < 0 && errno == EAGAIN)
             {
                 continue;
@@ -133,6 +138,7 @@ bool HttpConn::WriteToSocket()
             else
             {
                 left -= ret;
+                off_set += ret;
             }
         }
         close(fd);

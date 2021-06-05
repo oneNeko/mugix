@@ -66,13 +66,18 @@ Location: https://fin.oneneko.com/login?next=%2F
 Connection: keep-alive
 Vary: Cookie
 */
-    string header = protocol_ + " " + GetStatusCode(response_code_) + "\r\n";
+    string header = protocol_ + " " + GetStatusCode(206) + "\r\n";
     header += "Server: " + server_ + "\r\n";
     header += "Date: " + date_ + "\r\n";
     header += "Content-Type: " + content_type_ + "\r\n";
     if (content_length_ != 0)
     {
-        header += "Content-Length: " + to_string(content_length_) + "\r\n";
+        if (content_length_ > 100 * 1024)
+        {
+            header += "Content-Length: " + to_string(content_length_) + "\r\n";
+            header += "Content-Range: bytes 0-" + to_string(100 * 1024) + "/" + to_string(content_length_) + "\r\n";
+            content_length_ = 100 * 1024;
+        }
     }
     header += "Connection: " + connection_ + "\r\n";
     header += "\r\n";

@@ -8,6 +8,7 @@ enum RESPONSE_TYPE
 {
     T_CONTENT,
     T_FILE,
+    T_BIG_FILE
 };
 
 class HttpResponse
@@ -108,6 +109,8 @@ public:
     int type_ = -1;
     string file_path_;
     string content_;
+    int big_file_offset_left_;
+    int big_file_offset_right_;
 
 private:
     void SetType();
