@@ -114,12 +114,31 @@ bool HttpConn::WriteToSocket()
     else if (response_.type_ == T_FILE)
     {
         string buf = header_buf_;
+        int send_bytes = 0;
         n_write = write(client_sockfd_, buf.c_str(), buf.size());
         Log(buf);
 
         int ret = 0, left = response_.content_length_;
         int fd = open(response_.file_path_.c_str(), O_RDONLY);
-        ret = sendfile(client_sockfd_, fd, NULL, response_.content_length_);
+
+        off_t off_set = 0;
+        while (send_bytes < response_.content_length_)
+        {
+            ret = sendfile(client_sockfd_, fd, &off_set, response_.content_length_);
+            if (ret >= 0)
+            {
+                send_bytes += ret;
+                off_set = send_bytes;
+            }
+            else if (ret < 0 && errno == EAGAIN)
+            {
+                continue;
+            }
+            else
+            {
+                break;
+            }
+        }
 
         close(fd);
     }

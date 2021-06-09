@@ -117,7 +117,7 @@ private:
     void SetType();
     void SetContentLength();
     string GetStatusCode(int status);
-    string GetDate();
+    string GetDate(time_t timestamp = 0);
     void CheckFile();
     void GetResponseCode();
 
