@@ -24,7 +24,7 @@ public:
     int epoll_trige_mode_ = 0;
 
     //日志模式
-    int log_setting_ = 0;
+    int log_setting_ = 6;
 
     std::map<std::string, std::string> content_type_;
 };

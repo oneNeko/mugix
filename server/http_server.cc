@@ -39,6 +39,8 @@ HttpServer::~HttpServer()
 // 服务器初始化
 void HttpServer::Init()
 {
+    logger = Log::GetInstance();
+
     // 获取配置
     auto config = Config::GetInstance();
     server_port_ = config->PORT;
@@ -88,9 +90,9 @@ bool HttpServer::ProcessNewClient(int listen_fd)
         {
             return false;
         }
-        Log("new client!  " + string(inet_ntoa(client_address.sin_addr)) + ":" + to_string(ntohs(client_address.sin_port)));
+        logger->debug("new client: %s:%d", inet_ntoa(client_address.sin_addr), ntohs(client_address.sin_port));
         Utils::AddEvent(epollfd_, connfd, EPOLLIN | EPOLLONESHOT);
-        //Utils::ModifyEvent(epollfd_, listen_fd, EPOLLIN | EPOLLONESHOT);
+
         Utils::SetNonblock(connfd);
         users_[connfd].client_sockfd_ = connfd;
         users_[connfd].epoll_trig_mode_ = LT;
@@ -109,7 +111,7 @@ bool HttpServer::ProcessNewClient(int listen_fd)
                 Utils::ModifyEvent(epollfd_, listen_fd, EPOLLIN | EPOLLET | EPOLLONESHOT);
                 return false;
             }
-            Log("new client!  " + string(inet_ntoa(client_address.sin_addr)) + ":" + to_string(ntohs(client_address.sin_port)));
+            logger->debug("new client: %s:%d", inet_ntoa(client_address.sin_addr), ntohs(client_address.sin_port));
             Utils::AddEvent(epollfd_, connfd, EPOLLIN | EPOLLONESHOT | EPOLLET);
             Utils::SetNonblock(connfd);
             users_[connfd].client_sockfd_ = connfd;
@@ -128,17 +130,17 @@ void HttpServer::ProcessRead(int sockfd)
 
     if (n < 0)
     {
-        Log("recv error");
+        logger->error("recv error");
         users_[sockfd].ResetConn();
     }
     else if (n == 0)
     {
-        Log("client close");
+        logger->debug("client close");
         users_[sockfd].ResetConn();
     }
     else
     {
-        Log(buf);
+        logger->debug(buf);
 
         users_[sockfd].request_text_ = buf;
         users_[sockfd].client_sockfd_ = sockfd;
@@ -175,14 +177,14 @@ void HttpServer::ProcessWrite(int sockfd)
 
     if (n_write < 0)
     {
-        Log("client close,errno=EINTR");
+        logger->debug("client close,errno=EINTR");
         Utils::DeleteEvent(epollfd_, sockfd, EPOLLIN);
         close(sockfd);
     }
     else
     {
-        Log("response: OK");
-        Log(str_header);
+        logger->debug("response: OK");
+        logger->debug(str_header.c_str());
         Utils::ModifyEvent(epollfd_, sockfd, EPOLLIN);
     }
     users_[sockfd].ResetConn();
@@ -214,7 +216,7 @@ int HttpServer::EventListen()
 
     ret = listen(server_listen_socketfd_, 1000);
     assert(ret >= 0);
-    Log("listening at " + addr.sin_addr.s_addr + to_string(server_port_));
+    logger->info("listening at %s:%d", inet_ntoa(addr.sin_addr), server_port_);
 
     Utils::SetNonblock(server_listen_socketfd_);
 
@@ -244,7 +246,7 @@ void HttpServer::EventLoop()
         int number = epoll_wait(epollfd_, events_, k_MAX_EVENT_NUMBER, -1);
         if (number < 0 && errno != EINTR)
         {
-            Log("epoll failure");
+            logger->fatal("epoll failure");
             break;
         }
 
@@ -259,21 +261,21 @@ void HttpServer::EventLoop()
             }
             else if (events_[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR))
             {
-                Log("epoll client close");
+                logger->error("epoll client close");
                 Utils::DeleteEvent(epollfd_, sockfd, EPOLLIN);
                 close(sockfd);
             }
             //处理客户连接上接收到的数据
             else if (events_[i].events & EPOLLIN)
             {
-                //Log("epoll in");
+                logger->debug("epoll in");
                 //ProcessRead(sockfd);
                 users_[sockfd].rw_state = 1;
                 pool_->Append(users_ + sockfd);
             }
             else if (events_[i].events & EPOLLOUT)
             {
-                //Log("epoll out");
+                logger->debug("epoll out");
                 //ProcessWrite(sockfd);
                 users_[sockfd].rw_state = 2;
                 pool_->Append(users_ + sockfd);

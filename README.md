@@ -14,6 +14,8 @@ make install
 // -m   epoll触发模式(listenfd+connfd)
 // LT+LT LT+ET ET+LT ET+ET
 // 0     1     2     3
+// 
+// -l   日志级别(OFF,FATAL,ERROR,WARN,INFO,DEBUG,ALL)
 
-./build/mugix -p 50001 -d /home/neko/mugix/html/ -m 0
+./build/mugix -p 50001 -d /home/neko/mugix/html/ -m 0 -l 4
 ```

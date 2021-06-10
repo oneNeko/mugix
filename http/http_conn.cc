@@ -22,6 +22,15 @@ using namespace std;
 int HttpConn::user_count_ = 0;
 int HttpConn::epollfd_ = -1;
 
+HttpConn::HttpConn()
+{
+    logger = Log::GetInstance();
+}
+
+HttpConn::~HttpConn()
+{
+}
+
 void HttpConn::Init(int sock_fd, const sockaddr_in &addr)
 {
     client_sockfd_ = sock_fd;
@@ -42,7 +51,7 @@ void HttpConn::ResetConn(bool real_close)
     response_.Clear();
     if (real_close)
     {
-        Log("Reset Conn: client close");
+        logger->debug("Reset Conn: client close");
         Utils::DeleteEvent(epollfd_, client_sockfd_, EPOLLIN);
         close(client_sockfd_);
     }
@@ -97,7 +106,7 @@ bool HttpConn::ReadFromSocket()
     }
     else
     {
-        Log(buf);
+        logger->debug(buf);
         request_text_ = buf;
     }
     return true;
@@ -116,7 +125,7 @@ bool HttpConn::WriteToSocket()
         string buf = header_buf_;
         int send_bytes = 0;
         n_write = write(client_sockfd_, buf.c_str(), buf.size());
-        Log(buf);
+        logger->debug(buf.c_str());
 
         int ret = 0, left = response_.content_length_;
         int fd = open(response_.file_path_.c_str(), O_RDONLY);
@@ -146,7 +155,7 @@ bool HttpConn::WriteToSocket()
     {
         string buf = header_buf_;
         n_write = write(client_sockfd_, buf.c_str(), buf.size());
-        Log(buf);
+        logger->debug(buf.c_str());
 
         int ret = 0, left = response_.content_length_;
         int fd = open(response_.file_path_.c_str(), O_RDONLY);
@@ -189,6 +198,7 @@ void HttpConn::Process()
             return;
         }
         ProcessRead();
+        logger->info("");
         Utils::ModifyEvent(epollfd_, client_sockfd_, EPOLLOUT | EPOLLONESHOT | epoll_trig_mode_);
         return;
     }

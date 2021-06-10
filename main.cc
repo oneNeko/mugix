@@ -1,11 +1,21 @@
 #include "config/config.h"
 #include "server/http_server.h"
+#include "log/log.h"
 
 int main(int argc, char *argv[])
 {
 	// 命令行解析
-	auto instance = Config::GetInstance();
-	instance->ParseConfig(argc, argv);
+	auto config = Config::GetInstance();
+	config->ParseConfig(argc, argv);
+
+	// 日志
+	auto logger=Log::GetInstance();
+	if(!logger->Init(config->log_setting_,"./build/log/")){
+		printf("log error");
+		return 0;
+	}
+
+	logger->info("mugix start !");
 
 	HttpServer server;
 
@@ -14,6 +24,8 @@ int main(int argc, char *argv[])
 	server.EventListen();
 
 	server.EventLoop();
+
+	logger->info("mugix exit !");
 
 	return 0;
 }

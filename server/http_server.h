@@ -7,6 +7,7 @@
 
 #include "../http/http_conn.h"
 #include "../http/http_define.h"
+#include "../log/log.h"
 #include "../threadpool/thread_pool.h"
 
 const int k_MAX_FD = 65536;
@@ -35,6 +36,9 @@ private:
     ThreadPool<HttpConn> *pool_;
     int thread_num_ = 10;
     int max_requests_ = 10000;
+
+    //日志
+    Log* logger;
 
 private:
     void InitThreadPool();

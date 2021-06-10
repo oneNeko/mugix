@@ -10,14 +10,15 @@
 #include "http_define.h"
 #include "http_request.h"
 #include "http_response.h"
+#include "../log/log.h"
 
 using namespace std;
 
 class HttpConn
 {
 public:
-    HttpConn(){};
-    ~HttpConn(){};
+    HttpConn();
+    ~HttpConn();
 
 public:
     void Init(int sock_fd, const sockaddr_in &addr);
@@ -44,6 +45,9 @@ private:
     struct iovec iov[2];
     char* file_address_;
     int iv_count_;
+
+    // 日志
+    Log* logger;
 
 public:
     char header_buf_[2048];
