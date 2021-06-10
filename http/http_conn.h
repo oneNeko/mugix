@@ -21,7 +21,8 @@ public:
     ~HttpConn();
 
 public:
-    void Init(int sock_fd, const sockaddr_in &addr);
+    void Init(int sock_fd, const sockaddr_in &addr, int epoll_mode);
+    void ChangeRwState(bool rw_state);
     void ResetConn(bool real_close = true);
     void Process();
 
@@ -43,24 +44,24 @@ private:
 private:
     // 文件相关
     struct iovec iov[2];
-    char* file_address_;
+    char *file_address_;
     int iv_count_;
 
     // 日志
-    Log* logger;
+    Log *logger;
 
-public:
     char header_buf_[2048];
-    int rw_state;
+    int rw_state_;
     int client_sockfd_;
     sockaddr_in client_address_;
     string request_text_;
     int epoll_trig_mode_;
-    static int epollfd_;
-    static int user_count_;
 
+public:
     HttpRequest request_;
     HttpResponse response_;
+    static int epollfd_;
+    static int user_count_;
 };
 
 #endif

@@ -94,8 +94,8 @@ bool HttpServer::ProcessNewClient(int listen_fd)
         Utils::AddEvent(epollfd_, connfd, EPOLLIN | EPOLLONESHOT);
 
         Utils::SetNonblock(connfd);
-        users_[connfd].client_sockfd_ = connfd;
-        users_[connfd].epoll_trig_mode_ = LT;
+
+        users_[connfd].Init(connfd, client_address, LT);
     }
     else
     {
@@ -114,14 +114,13 @@ bool HttpServer::ProcessNewClient(int listen_fd)
             logger->debug("new client: %s:%d", inet_ntoa(client_address.sin_addr), ntohs(client_address.sin_port));
             Utils::AddEvent(epollfd_, connfd, EPOLLIN | EPOLLONESHOT | EPOLLET);
             Utils::SetNonblock(connfd);
-            users_[connfd].client_sockfd_ = connfd;
-            users_[connfd].epoll_trig_mode_ = EPOLLET;
+            users_[connfd].Init(connfd, client_address, ET);
         }
     }
 
     return true;
 }
-
+/*
 // 从socket缓冲区读取数据
 void HttpServer::ProcessRead(int sockfd)
 {
@@ -189,7 +188,7 @@ void HttpServer::ProcessWrite(int sockfd)
     }
     users_[sockfd].ResetConn();
 }
-
+*/
 // 创建线程池
 void HttpServer::InitThreadPool()
 {
@@ -270,14 +269,14 @@ void HttpServer::EventLoop()
             {
                 logger->debug("epoll in");
                 //ProcessRead(sockfd);
-                users_[sockfd].rw_state = 1;
+                users_[sockfd].ChangeRwState(true);
                 pool_->Append(users_ + sockfd);
             }
             else if (events_[i].events & EPOLLOUT)
             {
                 logger->debug("epoll out");
                 //ProcessWrite(sockfd);
-                users_[sockfd].rw_state = 2;
+                users_[sockfd].ChangeRwState(false);
                 pool_->Append(users_ + sockfd);
             }
         }

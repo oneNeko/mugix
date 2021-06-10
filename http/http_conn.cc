@@ -31,16 +31,22 @@ HttpConn::~HttpConn()
 {
 }
 
-void HttpConn::Init(int sock_fd, const sockaddr_in &addr)
+void HttpConn::Init(int sock_fd, const sockaddr_in &addr, int epoll_mode)
 {
     client_sockfd_ = sock_fd;
     client_address_ = addr;
+    epoll_trig_mode_ = epoll_mode;
 
     Init();
 }
 
 void HttpConn::Init()
 {
+}
+
+void HttpConn::ChangeRwState(bool rw_state)
+{
+    rw_state_ = rw_state;
 }
 
 void HttpConn::ResetConn(bool real_close)
@@ -106,7 +112,6 @@ bool HttpConn::ReadFromSocket()
     }
     else
     {
-        logger->debug(buf);
         request_text_ = buf;
     }
     return true;
@@ -190,7 +195,7 @@ bool HttpConn::WriteToSocket()
 // 处理请求
 void HttpConn::Process()
 {
-    if (rw_state == 1)
+    if (rw_state_ == true)
     {
         if (!ReadFromSocket())
         {
@@ -198,11 +203,10 @@ void HttpConn::Process()
             return;
         }
         ProcessRead();
-        logger->info("");
         Utils::ModifyEvent(epollfd_, client_sockfd_, EPOLLOUT | EPOLLONESHOT | epoll_trig_mode_);
         return;
     }
-    else if (rw_state == 2)
+    else if (rw_state_ == false)
     {
         ProcessWrite();
         if (!WriteToSocket())
