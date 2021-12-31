@@ -4,8 +4,6 @@
 #include <string>
 #include <mutex>
 
-using namespace std;
-
 enum
 {
     OFF,
@@ -23,7 +21,7 @@ class Log
 private:
     Log();
     ~Log();
-    bool GetTime(string &date, string &full_time);
+    bool GetTime(std::string &date, std::string &full_time);
     bool UpdateFp();
     void Out(int level, const char *strFormat, va_list arglist);
 
@@ -38,7 +36,7 @@ public:
         return instance;
     }
 
-    bool Init(int log_level, string dir_path);
+    bool Init(int log_level, std::string dir_path);
 
     // 方便书写使用小写
     void fatal(const char *format, ...);
@@ -51,13 +49,13 @@ public:
 
 private:
     int log_write_level_ = ALL;
-    string dir_path_ = "/var/log/mugix/";
-    string log_file_path_;
+    std::string dir_path_ = "/var/log/mugix/";
+    std::string log_file_path_;
 
     FILE *log_fp_;
-    string date_;
+    std::string date_;
 
-    mutex log_mutex_;
+    std::mutex log_mutex_;
 };
 
 #endif

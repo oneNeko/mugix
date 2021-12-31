@@ -9,8 +9,11 @@
 
 #include "log.h"
 
+using std::string;
+
 Log::Log()
 {
+    
 }
 
 Log::~Log()
@@ -21,6 +24,9 @@ Log::~Log()
     }
 }
 
+// 初始化日志配置
+// log_level 日志记录级别
+// dir_path 日志地址
 bool Log::Init(int log_level, string dir_path)
 {
     log_write_level_ = log_level;
@@ -34,6 +40,7 @@ bool Log::Init(int log_level, string dir_path)
     return true;
 }
 
+// 获取日期和完整时间
 bool Log::GetTime(string &date, string &full_time)
 {
     char buf[256], buf1[256];
@@ -62,13 +69,17 @@ bool Log::UpdateFp()
     GetTime(date_, tmp);
     string path = dir_path_ + date_ + ".log";
     log_fp_ = fopen(path.c_str(), "a");
-    if (log_fp_ == NULL)
+    if (log_fp_ == nullptr)
     {
+        printf("open log file failed.");
         return false;
     }
     return true;
 }
 
+// 日志输出主接口
+// 日志级别
+// 日志内容
 void Log::Out(int level, const char *format, va_list arglist)
 {
     string log = "";
