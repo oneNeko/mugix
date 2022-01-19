@@ -20,9 +20,14 @@ make install
 ./build/mugix -p 50001 -d /home/neko/mugix/html/ -m 0 -l 4
 ```
 ## 架构
-### 目标
-实现高性能Web服务器，要求支持服务可拓展
-### 要求
+--| server http服务器   
+-----| app 应用  
+
+--| test 单元测试  
+
+## 目标
+实现高性能Web服务器，要求支持应用可拓展
+## 要求
 - [ ] 使用epoll(LT/ET)管理监听、连接套接字
 - [ ] 使用连接池处理任务
 - [ ] 使用状态机解析请求头
