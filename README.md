@@ -20,9 +20,11 @@ make install
 ./build/mugix -p 50001 -d /home/neko/mugix/html/ -m 0 -l 4
 ```
 ## 架构
---| server http服务器   
+--| mugix  
 -----| app 应用  
-
+-----| server 服务器
+--------| socket 管理socket连接
+--------| http 解析http请求，分发给对应app，最后响应http请求
 --| test 单元测试  
 
 ## 目标

@@ -1,6 +1,6 @@
-#include "config/config.h"
-#include "server/http_server.h"
-#include "log/log.h"
+#include "server/core/config.h"
+#include "server/core/http_server.h"
+#include "utils/log.h"
 
 int main(int argc, char *argv[])
 {
