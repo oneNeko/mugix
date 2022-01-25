@@ -14,7 +14,7 @@ private:
 public:
     SafeQueue(){};
     SafeQueue(SafeQueue &&other){};
-    ~SafeQueue();
+    ~SafeQueue(){};
 
     bool empty()
     {
