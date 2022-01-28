@@ -18,7 +18,7 @@
 #include <fcntl.h>
 #include <sys/sendfile.h>
 
-#include "core.h"
+#include "socket_controler.h"
 
 namespace mugix::server
 {
@@ -52,7 +52,7 @@ namespace mugix::server
 #pragma region 核心
 
     // 初始化mugix核心
-    bool Core::Init()
+    bool SockerControler::Init()
     {
         // 读取配置
 
@@ -62,7 +62,7 @@ namespace mugix::server
     }
 
     // 启动监听
-    bool Core::EventListen()
+    bool SockerControler::EventListen()
     {
         // 启动监听套接字
         server_listen_socketfd_ = socket(AF_INET, SOCK_STREAM, 0);
@@ -99,7 +99,7 @@ namespace mugix::server
     }
 
     // 事件主循环
-    bool Core::EventLoop()
+    bool SockerControler::EventLoop()
     {
         while (true)
         {
@@ -142,7 +142,7 @@ namespace mugix::server
     }
 
     // 处理新到的连接
-    bool Core::ProcessNewClient()
+    bool SockerControler::ProcessNewClient()
     {
         // 水平触发方式
         if (mode_epoll_trig_listen_ == EPOLL_LT)
@@ -187,7 +187,7 @@ namespace mugix::server
         return true;
     }
 
-    void Core::run()
+    void SockerControler::run()
     {
         Init();
         EventListen();
@@ -198,7 +198,7 @@ namespace mugix::server
 
 #pragma region 处理epoll事件
     // 添加epoll事件
-    void Core::AddEpollEvent(int fd, int state)
+    void SockerControler::AddEpollEvent(int fd, int state)
     {
         struct epoll_event event;
         event.events = state;
@@ -207,7 +207,7 @@ namespace mugix::server
     }
 
     // 删除epoll事件
-    void Core::DeleteEpollEvent(int fd, int state)
+    void SockerControler::DeleteEpollEvent(int fd, int state)
     {
         struct epoll_event ev;
         ev.events = state;
@@ -216,7 +216,7 @@ namespace mugix::server
     }
 
     // 修改epoll事件
-    void Core::ModifyEpollEvent(int fd, int state)
+    void SockerControler::ModifyEpollEvent(int fd, int state)
     {
         struct epoll_event ev;
         ev.events = state;
@@ -225,7 +225,7 @@ namespace mugix::server
     }
 
     // 设置套接字非阻塞
-    void Core::SetSocketNonBlock(int fd)
+    void SockerControler::SetSocketNonBlock(int fd)
     {
         int flags = fcntl(fd, F_GETFL, 0);
         fcntl(fd, F_SETFL, flags | O_NONBLOCK);

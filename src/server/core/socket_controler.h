@@ -1,5 +1,5 @@
-#ifndef CORE_H
-#define CORE_H
+#ifndef SOCKET_CONTROLER_H
+#define SOCKET_CONTROLER_H
 
 #include <string>
 #include <sys/socket.h>
@@ -28,7 +28,7 @@ namespace mugix::server
     // mugix核心
     // 使用epoll管理socket
     // 使用线程池处理请求
-    class Core
+    class SockerControler
     {
     private:
         // epoll 触发模式枚举
@@ -70,13 +70,13 @@ namespace mugix::server
         bool ProcessNewClient();
 
     public:
-        Core(const int port = 5000) : server_port_(port){};
-        Core(const Core &) = delete;
-        Core(Core &&) = delete;
-        Core &operator=(const Core &) = delete;
-        Core &operator=(Core &&) = delete;
+        SockerControler(const int port = 5000) : server_port_(port){};
+        SockerControler(const SockerControler &) = delete;
+        SockerControler(SockerControler &&) = delete;
+        SockerControler &operator=(const SockerControler &) = delete;
+        SockerControler &operator=(SockerControler &&) = delete;
 
-        ~Core(){};
+        ~SockerControler(){};
 
     public:
         void run();
