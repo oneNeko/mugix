@@ -38,6 +38,8 @@ namespace mugix::server
         else
         {
             // 待完成
+            // printf("%s",buffer);
+            close(fd);
         }
         return n;
     }
@@ -45,7 +47,9 @@ namespace mugix::server
     // 向socket写入
     int WriteToSocket(int fd)
     {
-        // 待完成
+        // TODO
+        // std::string response="HTTP/1.1 200 OK\r\nServer: nginx/1.18.0 (Ubuntu)\r\n\r\n";
+        // send(fd, response.c_str(), response.size(), 0);
         return 0;
     }
 
@@ -106,7 +110,7 @@ namespace mugix::server
             int number = epoll_wait(epollfd_, events_, k_MAX_EVENT_NUMBER, -1);
             if (number < 0 && errno != EINTR)
             {
-                //logger->fatal("epoll failure");
+                // logger->fatal("epoll failure");
                 break;
             }
 
@@ -122,19 +126,19 @@ namespace mugix::server
                 //收到epoll断开或错误事件
                 else if (events_[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR))
                 {
-                    //logger->error("epoll client close");
+                    // logger->error("epoll client close");
                     DeleteEpollEvent(sockfd, EPOLLIN);
                     close(sockfd);
                 }
                 //收到epoll写入事件
                 else if (events_[i].events & EPOLLIN)
                 {
-                    pool_.submit(ReadFromSocket, sockfd);
+                    pool_.submit(ReadFromSocket, sockfd); //向线程池添加读任务
                 }
                 //收到epoll输出事件
                 else if (events_[i].events & EPOLLOUT)
                 {
-                    pool_.submit(WriteToSocket, sockfd);
+                    pool_.submit(WriteToSocket, sockfd); //向线程池添加写任务
                 }
             }
         }

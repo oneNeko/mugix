@@ -30,6 +30,7 @@ private:
 
             while (!pool_->is_shutdown_)
             {
+                {
                 // 为线程环境加锁，互访问工作线程的休眠和唤醒
                 std::unique_lock<std::mutex> lock(pool_->conditional_mutex_);
 
@@ -41,6 +42,8 @@ private:
 
                 //取出任务队列中的元素
                 dequeued = pool_->queue_.dequeue(func);
+                }
+                
                 //如果成功取出，执行工作函数
                 if (dequeued)
                 {
