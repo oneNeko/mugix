@@ -13,43 +13,110 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/sendfile.h>
 
 #include "socket_controler.h"
+#include "logger.h"
+
+#pragma region 处理epoll事件
+// 添加epoll事件
+void AddEpollEvent(int epoll_fd, int fd, int state)
+{
+    struct epoll_event event;
+    event.events = state;
+    event.data.fd = fd;
+    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &event);
+}
+
+// 删除epoll事件
+void DeleteEpollEvent(int epoll_fd, int fd, int state)
+{
+    struct epoll_event ev;
+    ev.events = state;
+    ev.data.fd = fd;
+    epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, &ev);
+}
+
+// 修改epoll事件
+void ModifyEpollEvent(int epoll_fd, int fd, int state)
+{
+    struct epoll_event ev;
+    ev.events = state;
+    ev.data.fd = fd;
+    epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &ev);
+}
+
+// 设置套接字非阻塞
+void SetSocketNonBlock(int fd)
+{
+    int flags = fcntl(fd, F_GETFL, 0);
+    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+}
+
+#pragma endregion
 
 namespace mugix::server
 {
+    std::mutex in_mutex, out_mutex;
     // 从socket中读取数据后交由http层处理
-    int ReadFromSocket(int fd)
+    int ReadFromSocket(int epoll_fd, int sock_fd)
     {
+        debug("开始读取scoket缓冲区...");
         char buffer[2048];
-        int n = recv(fd, buffer, sizeof(buffer), 0);
+        memset(buffer, 0, 1024);
+        int n = recv(sock_fd, buffer, sizeof(buffer), 0);
+        debug("接收到 %d bytes", n);
         if (n < 0)
         {
-            close(fd);
+            debug("n<0,关闭sockfd=%d", sock_fd);
+            close(sock_fd);
+            DeleteEpollEvent(epoll_fd, sock_fd, EPOLLIN);
         }
         else if (n == 0)
         {
-            close(fd);
+            debug("n=0,关闭sockfd=%d", sock_fd);
+            close(sock_fd);
+            DeleteEpollEvent(epoll_fd, sock_fd, EPOLLIN);
         }
         else
         {
-            // 待完成
-            // printf("%s",buffer);
-            close(fd);
+            debug("接收到内容：%s", buffer);
+            ModifyEpollEvent(epoll_fd, sock_fd, EPOLLOUT | EPOLLONESHOT);
         }
+        debug("读取scoket缓冲区结束");
         return n;
     }
 
     // 向socket写入
-    int WriteToSocket(int fd)
+    int WriteToSocket(int epoll_fd, int sock_fd)
     {
-        // TODO
-        // std::string response="HTTP/1.1 200 OK\r\nServer: nginx/1.18.0 (Ubuntu)\r\n\r\n";
-        // send(fd, response.c_str(), response.size(), 0);
+        debug("开始发送数据到scoket缓冲区...");
+        // std::lock_guard<std::mutex> lock(out_mutex);
+        const char *header = "HTTP/1.1 200 OK\r\nServer: nginx/1.18.0 (Ubuntu)\r\nContent-Length:%d\r\n\r\n";
+        const char *body = "ok";
+
+        char response[1024];
+        sprintf(response, header, strlen(body));
+        strcat(response, body);
+
+        int n = send(sock_fd, response, strlen(response), 0);
+        debug("发送字节数n=%d", n);
+        if (n <= 0)
+        {
+            debug("发送了 %d bytes，关闭socket", n);
+            close(sock_fd);
+            DeleteEpollEvent(epoll_fd, sock_fd, EPOLLIN);
+        }
+        else
+        {
+            debug("发送成功");
+        }
+
+        debug("发送到scoket缓冲区结束");
         return 0;
     }
 
@@ -59,6 +126,7 @@ namespace mugix::server
     bool SockerControler::Init()
     {
         // 读取配置
+        mode_epoll_trig_listen_ = EPOLL_ET;
 
         // 初始化线程池
         pool_.init();
@@ -81,7 +149,7 @@ namespace mugix::server
         assert(listen(server_listen_socketfd_, 1000) >= 0);
 
         bool flag = true;
-        setsockopt(server_listen_socketfd_, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(bool)); //允许监听套接字重复使用，跳过time_wait
+        setsockopt(server_listen_socketfd_, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &flag, sizeof(bool)); //允许监听套接字重复使用，跳过time_wait
 
         //设置监听套接字非阻塞
         SetSocketNonBlock(server_listen_socketfd_);
@@ -93,11 +161,11 @@ namespace mugix::server
         // 设置为边缘触发时，设置为oneshot模式，避免收不到持续信息
         if (mode_epoll_trig_listen_ == EPOLL_ET)
         {
-            AddEpollEvent(server_listen_socketfd_, EPOLLIN | EPOLLRDHUP | EPOLLONESHOT | mode_epoll_trig_listen_);
+            AddEpollEvent(epollfd_, server_listen_socketfd_, EPOLLIN | EPOLLRDHUP | EPOLLONESHOT | mode_epoll_trig_listen_);
         }
         else
         {
-            AddEpollEvent(server_listen_socketfd_, EPOLLIN | EPOLLRDHUP);
+            AddEpollEvent(epollfd_, server_listen_socketfd_, EPOLLIN | EPOLLRDHUP);
         }
         return true;
     }
@@ -121,24 +189,27 @@ namespace mugix::server
                 //有新到的客户连接事件
                 if (sockfd == server_listen_socketfd_)
                 {
+                    debug("epoll 接收到新连接");
                     ProcessNewClient();
                 }
                 //收到epoll断开或错误事件
                 else if (events_[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR))
                 {
                     // logger->error("epoll client close");
-                    DeleteEpollEvent(sockfd, EPOLLIN);
+                    debug("epoll 断开或错误，关闭socket,sockfd=%d", sockfd);
+                    DeleteEpollEvent(epollfd_, sockfd, EPOLLIN);
                     close(sockfd);
                 }
                 //收到epoll写入事件
                 else if (events_[i].events & EPOLLIN)
                 {
-                    pool_.submit(ReadFromSocket, sockfd); //向线程池添加读任务
+                    pool_.submit(ReadFromSocket, epollfd_, sockfd); //向线程池添加读任务
                 }
                 //收到epoll输出事件
                 else if (events_[i].events & EPOLLOUT)
                 {
-                    pool_.submit(WriteToSocket, sockfd); //向线程池添加写任务
+                    pool_.submit(WriteToSocket, epollfd_, sockfd); //向线程池添加写任务
+                    ModifyEpollEvent(epollfd_, sockfd, EPOLLIN | EPOLLONESHOT);
                 }
             }
         }
@@ -161,10 +232,16 @@ namespace mugix::server
                 return false;
             }
 
-            AddEpollEvent(connfd, EPOLLIN | EPOLLONESHOT);
+            AddEpollEvent(epollfd_, connfd, EPOLLIN | EPOLLONESHOT);
             SetSocketNonBlock(connfd);
 
             users_[connfd] = UserSocket(connfd, client_address, EPOLL_LT);
+
+            // 输出客户端ip 端口
+            struct sockaddr_in addr;
+            socklen_t len = sizeof(addr);
+            getpeername(connfd, (struct sockaddr *)&addr, &len);
+            info("新客户端，ip=%s,port=%d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
         }
         // 边缘触发方式
         else
@@ -178,13 +255,19 @@ namespace mugix::server
 
                 if (connfd < 0)
                 {
-                    ModifyEpollEvent(server_listen_socketfd_, EPOLLIN | EPOLLET | EPOLLONESHOT);
+                    ModifyEpollEvent(epollfd_, server_listen_socketfd_, EPOLLIN | EPOLLET | EPOLLONESHOT);
                     return false;
                 }
 
-                AddEpollEvent(connfd, EPOLLIN | EPOLLONESHOT | EPOLLET);
+                AddEpollEvent(epollfd_, connfd, EPOLLIN | EPOLLONESHOT | EPOLLET);
                 SetSocketNonBlock(connfd);
                 users_[connfd] = UserSocket(connfd, client_address, EPOLL_LT);
+
+                // 输出客户端ip 端口
+                struct sockaddr_in addr;
+                socklen_t len = sizeof(addr);
+                getpeername(connfd, (struct sockaddr *)&addr, &len);
+                info("新客户端，ip=%s,port=%d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
             }
         }
 
@@ -199,40 +282,4 @@ namespace mugix::server
     }
 
 #pragma endregion
-
-#pragma region 处理epoll事件
-    // 添加epoll事件
-    void SockerControler::AddEpollEvent(int fd, int state)
-    {
-        struct epoll_event event;
-        event.events = state;
-        event.data.fd = fd;
-        epoll_ctl(epollfd_, EPOLL_CTL_ADD, fd, &event);
-    }
-
-    // 删除epoll事件
-    void SockerControler::DeleteEpollEvent(int fd, int state)
-    {
-        struct epoll_event ev;
-        ev.events = state;
-        ev.data.fd = fd;
-        epoll_ctl(epollfd_, EPOLL_CTL_DEL, fd, &ev);
-    }
-
-    // 修改epoll事件
-    void SockerControler::ModifyEpollEvent(int fd, int state)
-    {
-        struct epoll_event ev;
-        ev.events = state;
-        ev.data.fd = fd;
-        epoll_ctl(epollfd_, EPOLL_CTL_MOD, fd, &ev);
-    }
-
-    // 设置套接字非阻塞
-    void SockerControler::SetSocketNonBlock(int fd)
-    {
-        int flags = fcntl(fd, F_GETFL, 0);
-        fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-    }
 }
-#pragma endregion

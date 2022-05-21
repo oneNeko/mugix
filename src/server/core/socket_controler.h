@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <sys/epoll.h>
+#include <mutex>
 
 #include "thread_pool.h"
 
@@ -55,13 +56,8 @@ namespace mugix::server
     private:
         // epoll相关
         epoll_event events_[k_MAX_EVENT_NUMBER];
-
-        void AddEpollEvent(int fd, int state);
-        void ModifyEpollEvent(int fd, int state);
-        void DeleteEpollEvent(int fd, int state);
-
-        void SetSocketNonBlock(int fd);
         UserSocket users_[65536];
+        std::mutex in_mutex_,out_mutex_,new_nutex_;
 
     private:
         bool Init();
