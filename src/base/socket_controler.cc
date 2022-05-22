@@ -205,8 +205,9 @@ namespace mugix::server
         // addr.sin_addr.s_addr = htonl(INADDR_ANY);
         inet_pton(AF_INET, server_listen_ip_, &addr.sin_addr);
 
-        bool flag = true;
-        setsockopt(server_listen_socketfd_, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(bool)); //允许监听套接字重复使用，跳过time_wait(必须在bind之前使用)
+        int flag = 1;
+        int set_n = setsockopt(server_listen_socketfd_, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(int)); //允许监听套接字重复使用，跳过time_wait(必须在bind之前使用)
+        debug("setsockopt:error=%d,ret=%d", errno, set_n);
 
         assert(bind(server_listen_socketfd_, (sockaddr *)&addr, sizeof(addr)) >= 0);
         assert(listen(server_listen_socketfd_, 1000) >= 0);
