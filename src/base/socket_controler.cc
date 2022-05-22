@@ -109,7 +109,7 @@ namespace mugix::server
 
         if (users_[sock_fd].http_controler_.url_ == "/")
         {
-            users_[sock_fd].http_controler_.url_ = "index.html";
+            users_[sock_fd].http_controler_.url_ = "/index.html";
         }
 
         std::string file_path = Config::GetConfig().root_path_ + UrlDecode(users_[sock_fd].http_controler_.url_.substr(0, users_[sock_fd].http_controler_.url_.find('?')));
@@ -117,7 +117,7 @@ namespace mugix::server
         int file_fd = open(file_path.c_str(), O_RDONLY);
         if (file_fd <= 0)
         {
-            error("打开文件失败，url=%s", users_[sock_fd].http_controler_.url_.c_str());
+            error("打开文件失败，url=%s", file_path.c_str());
             sprintf(response, header, 404, body.length());
             strcat(response, body.c_str());
             n_send = send(sock_fd, response, strlen(response), 0);
@@ -136,9 +136,36 @@ namespace mugix::server
             // sprintf(m_time, "%4.4d%2.2d%2.2d%2.2d%2.2d%2.2d", tm1.tm_year + 1900, tm1.tm_mon + 1, tm1.tm_mday,
             //         tm1.tm_hour, tm1.tm_min, tm1.tm_sec);
             // info(m_time);
-            
+
             n_send = send(sock_fd, response, strlen(response), 0);
-            n_send += sendfile(sock_fd, file_fd, 0, stat_buf.st_size);
+
+            // 使用sendfile发送文件
+            off_t off_set = 0;
+            int n_bytes_file_already_sent = 0;
+            while (n_bytes_file_already_sent < stat_buf.st_size)
+            {
+                debug("发送文件，off_set=%ld，stat_buf.st_size=%ld", off_set,stat_buf.st_size);
+                int n_file_sent = sendfile(sock_fd, file_fd, &off_set, stat_buf.st_size);
+                debug("此次文件发送字节数n_sent=%d", n_file_sent);
+                if (n_file_sent >= 0)
+                {
+                    n_bytes_file_already_sent += n_file_sent;
+                    off_set = n_bytes_file_already_sent;
+                    debug("n_bytes_file_already_sent=%d", n_bytes_file_already_sent);
+                }
+                else if (n_file_sent < 0 && errno == EAGAIN)
+                {
+                    // TODO:修改为非阻塞
+                    // 休眠10ms等待缓冲区可读
+                    usleep(10*1000);
+                    continue;
+                }
+                else
+                {
+                    debug("errno=%d", errno);
+                    break;
+                }
+            }
         }
 
         debug("发送字节数n=%d", n_send);
