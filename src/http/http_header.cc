@@ -1,6 +1,6 @@
 #include "http_header.h"
 
-namespace mugix::http
+namespace mugix
 {
     HttpHeader::HttpHeader()
     {
@@ -82,4 +82,4 @@ namespace mugix::http
         }
         return 0;
     }
-}
+}// namespace mugix

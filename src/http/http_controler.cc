@@ -1,6 +1,6 @@
 #include "http_controler.h"
 
-namespace mugix::http
+namespace mugix
 {
     
 }

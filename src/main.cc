@@ -1,8 +1,9 @@
 #include <unistd.h>
 
-#include "server/core/socket_controler.h"
-#include "server/core/logger.h"
-#include "server/core/config.h"
+#include "base/config.h"
+#include "base/socket_controler.h"
+#include "utils/logger.h"
+
 
 int main(int argc, char *argv[])
 {

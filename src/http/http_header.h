@@ -7,7 +7,7 @@
 using std::string;
 using std::unordered_map;
 
-namespace mugix::http
+namespace mugix
 {
 #pragma region http定义
     //http头
@@ -114,5 +114,5 @@ namespace mugix::http
         string content_language_ = ""; //http响应语言
     };
 
-}
+} //namespace mugix
 #endif

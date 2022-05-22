@@ -5,7 +5,7 @@
 #include <string>
 #include <string.h>
 
-#include "logger.h"
+#include "../utils/logger.h"
 
 Config::Config()
 {

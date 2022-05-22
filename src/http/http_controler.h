@@ -5,9 +5,10 @@
 #include <string>
 using std::string;
 
-namespace mugix::http
+namespace mugix
 {
     
+
     //http控制类
     class HttpControler
     {
@@ -16,6 +17,6 @@ namespace mugix::http
     public:
         
     };
-}
+} //namespace mugix
 
 #endif
