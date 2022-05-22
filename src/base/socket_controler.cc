@@ -109,7 +109,7 @@ namespace mugix::server
 
         if (users_[sock_fd].http_controler_.url_ == "/")
         {
-            users_[sock_fd].http_controler_.url_ = "index.html";
+            users_[sock_fd].http_controler_.url_ = "/index.html";
         }
 
         std::string file_path = Config::GetConfig().root_path_ + UrlDecode(users_[sock_fd].http_controler_.url_.substr(0, users_[sock_fd].http_controler_.url_.find('?')));
@@ -117,7 +117,7 @@ namespace mugix::server
         int file_fd = open(file_path.c_str(), O_RDONLY);
         if (file_fd <= 0)
         {
-            error("打开文件失败，url=%s", users_[sock_fd].http_controler_.url_.c_str());
+            error("打开文件失败，url=%s", file_path.c_str());
             sprintf(response, header, 404, body.length());
             strcat(response, body.c_str());
             n_send = send(sock_fd, response, strlen(response), 0);
