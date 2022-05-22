@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
 
 	info("mugix start ...");
 
-	// daemon(1, 1);
+	daemon(1, 1);
 
 	mugix::server::SocketControler sc(Config::GetConfig().ip_.c_str(), Config::GetConfig().port_);
 	sc.run();
