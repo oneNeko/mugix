@@ -19,6 +19,7 @@
 #include <fcntl.h>
 #include <sys/sendfile.h>
 
+#include "config.h"
 #include "socket_controler.h"
 #include "logger.h"
 
@@ -95,7 +96,6 @@ namespace mugix::server
     int WriteToSocket(int epoll_fd, int sock_fd)
     {
         debug("开始发送数据到scoket缓冲区...");
-        // std::lock_guard<std::mutex> lock(out_mutex);
         const char *header = "HTTP/1.1 200 OK\r\nServer: nginx/1.18.0 (Ubuntu)\r\nContent-Length:%d\r\n\r\n";
         const char *body = "ok";
 
@@ -143,10 +143,14 @@ namespace mugix::server
         sockaddr_in addr;
         addr.sin_family = AF_INET;
         addr.sin_port = htons(server_port_);
-        addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        // addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        inet_pton(AF_INET, server_listen_ip_, &addr.sin_addr);
 
         assert(bind(server_listen_socketfd_, (sockaddr *)&addr, sizeof(addr)) >= 0);
         assert(listen(server_listen_socketfd_, 1000) >= 0);
+
+        // 输出客户端ip 端口
+        info("开始监听，ip=%s,port=%d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
 
         bool flag = true;
         setsockopt(server_listen_socketfd_, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &flag, sizeof(bool)); //允许监听套接字重复使用，跳过time_wait

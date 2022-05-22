@@ -20,7 +20,7 @@ namespace mugix::server
     {
         int socket_fd_;                     //用户套接字
         struct sockaddr_in client_address_; //用户ip地址
-        int epoll_mode_;                    //epoll触发模式
+        int epoll_mode_;                    // epoll触发模式
     public:
         UserSocket(){};
         UserSocket(int fd, sockaddr_in address, int epoll_mode) : socket_fd_(fd), client_address_(address){};
@@ -45,11 +45,12 @@ namespace mugix::server
             ERROR_CORE_INIT = 0, //初始化错误
         };
 
-        int epollfd_;                           //epoll 文件描述符
+        int epollfd_;                           // epoll 文件描述符
         int mode_epoll_trig_listen_ = EPOLL_LT; //监听套接字触发方式
         int mode_epoll_trig_conn_ = EPOLL_LT;   //连接套接字触发方式
         int server_listen_socketfd_;            //监听套接字
         int server_port_;                       //监听端口
+        const char *server_listen_ip_;
 
     private:
         ThreadPool pool_; //线程池
@@ -57,7 +58,7 @@ namespace mugix::server
         // epoll相关
         epoll_event events_[k_MAX_EVENT_NUMBER];
         UserSocket users_[65536];
-        std::mutex in_mutex_,out_mutex_,new_nutex_;
+        std::mutex in_mutex_, out_mutex_, new_nutex_;
 
     private:
         bool Init();
@@ -66,7 +67,7 @@ namespace mugix::server
         bool ProcessNewClient();
 
     public:
-        SockerControler(const int port = 5000) : server_port_(port){};
+        SockerControler(const char *ip = "0.0.0.0", const int port = 10000) : server_listen_ip_(ip), server_port_(port){};
         SockerControler(const SockerControler &) = delete;
         SockerControler(SockerControler &&) = delete;
         SockerControler &operator=(const SockerControler &) = delete;
