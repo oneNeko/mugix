@@ -8,6 +8,7 @@
 #include <mutex>
 
 #include "thread_pool.h"
+#include "../http/http_controler.h"
 
 namespace mugix::server
 {
@@ -24,12 +25,13 @@ namespace mugix::server
     public:
         UserSocket(){};
         UserSocket(int fd, sockaddr_in address, int epoll_mode) : socket_fd_(fd), client_address_(address){};
+        HttpControler http_controler_;
     };
 
     // mugix核心
     // 使用epoll管理socket
     // 使用线程池处理请求
-    class SockerControler
+    class SocketControler
     {
     private:
         // epoll 触发模式枚举
@@ -58,22 +60,23 @@ namespace mugix::server
         // epoll相关
         epoll_event events_[k_MAX_EVENT_NUMBER];
         UserSocket users_[65536];
-        std::mutex in_mutex_, out_mutex_, new_nutex_;
 
     private:
         bool Init();
         bool EventListen();
         bool EventLoop();
         bool ProcessNewClient();
+        int ReadFromSocket(int sock_fd);
+        int WriteToSocket(int sock_fd);
 
     public:
-        SockerControler(const char *ip = "0.0.0.0", const int port = 10000) : server_listen_ip_(ip), server_port_(port){};
-        SockerControler(const SockerControler &) = delete;
-        SockerControler(SockerControler &&) = delete;
-        SockerControler &operator=(const SockerControler &) = delete;
-        SockerControler &operator=(SockerControler &&) = delete;
+        SocketControler(const char *ip = "0.0.0.0", const int port = 10000) : server_listen_ip_(ip), server_port_(port){};
+        SocketControler(const SocketControler &) = delete;
+        SocketControler(SocketControler &&) = delete;
+        SocketControler &operator=(const SocketControler &) = delete;
+        SocketControler &operator=(SocketControler &&) = delete;
 
-        ~SockerControler(){};
+        ~SocketControler(){};
 
     public:
         void run();

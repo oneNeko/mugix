@@ -12,16 +12,19 @@
 #include <assert.h>
 #include <iostream>
 #include <fstream>
+#include <functional>
 #include <sstream>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/sendfile.h>
+#include <sys/stat.h>
 
 #include "config.h"
 #include "socket_controler.h"
 #include "../utils/logger.h"
+#include "../utils/utils.h"
 
 #pragma region 处理epoll事件
 // 添加epoll事件
@@ -64,52 +67,86 @@ namespace mugix::server
 {
     std::mutex in_mutex, out_mutex;
     // 从socket中读取数据后交由http层处理
-    int ReadFromSocket(int epoll_fd, int sock_fd)
+    int SocketControler::ReadFromSocket(int sock_fd)
     {
         debug("开始读取scoket缓冲区...");
         char buffer[2048];
-        memset(buffer, 0, 1024);
+        memset(buffer, 0, 2048);
         int n = recv(sock_fd, buffer, sizeof(buffer), 0);
         debug("接收到 %d bytes", n);
         if (n < 0)
         {
             debug("n<0,关闭sockfd=%d", sock_fd);
             close(sock_fd);
-            DeleteEpollEvent(epoll_fd, sock_fd, EPOLLIN);
+            DeleteEpollEvent(epollfd_, sock_fd, EPOLLIN);
         }
         else if (n == 0)
         {
             debug("n=0,关闭sockfd=%d", sock_fd);
             close(sock_fd);
-            DeleteEpollEvent(epoll_fd, sock_fd, EPOLLIN);
+            DeleteEpollEvent(epollfd_, sock_fd, EPOLLIN);
         }
         else
         {
-            debug("接收到内容：%s", buffer);
-            ModifyEpollEvent(epoll_fd, sock_fd, EPOLLOUT | EPOLLONESHOT);
+            info("接收到内容：%s", buffer);
+
+            users_[sock_fd].http_controler_.url_ = HttpHeader(buffer).path_;
+            ModifyEpollEvent(epollfd_, sock_fd, EPOLLOUT | EPOLLONESHOT);
         }
         debug("读取scoket缓冲区结束");
         return n;
     }
 
     // 向socket写入
-    int WriteToSocket(int epoll_fd, int sock_fd)
+    int SocketControler::WriteToSocket(int sock_fd)
     {
         debug("开始发送数据到scoket缓冲区...");
-        const char *header = "HTTP/1.1 200 OK\r\nServer: nginx/1.18.0 (Ubuntu)\r\nContent-Length:%d\r\n\r\n";
-        const char *body = "ok";
+        const char *header = "HTTP/1.1 %d OK\r\nServer: nginx/1.18.0 (Ubuntu)\r\nContent-Length:%d\r\n\r\n";
+        std::string body = "404";
 
+        int n_send = 0;
         char response[1024];
-        sprintf(response, header, strlen(body));
-        strcat(response, body);
 
-        int n = send(sock_fd, response, strlen(response), 0);
-        debug("发送字节数n=%d", n);
-        if (n <= 0)
+        if (users_[sock_fd].http_controler_.url_ == "/")
         {
-            debug("发送了 %d bytes，关闭socket", n);
+            users_[sock_fd].http_controler_.url_ = "index.html";
+        }
+
+        std::string file_path = Config::GetConfig().root_path_ + UrlDecode(users_[sock_fd].http_controler_.url_.substr(0, users_[sock_fd].http_controler_.url_.find('?')));
+
+        int file_fd = open(file_path.c_str(), O_RDONLY);
+        if (file_fd <= 0)
+        {
+            error("打开文件失败，url=%s", users_[sock_fd].http_controler_.url_.c_str());
+            sprintf(response, header, 404, body.length());
+            strcat(response, body.c_str());
+            n_send = send(sock_fd, response, strlen(response), 0);
+        }
+        else
+        {
+            struct stat stat_buf;
+            fstat(file_fd, &stat_buf);
+            sprintf(response, header, 200, stat_buf.st_size);
+            stat_buf.st_mtim;
+
+            // 校验时间
+            // char m_time[1024];
+            // struct tm tm1;
+            // tm1 = *localtime(&stat_buf.st_mtim.tv_sec);
+            // sprintf(m_time, "%4.4d%2.2d%2.2d%2.2d%2.2d%2.2d", tm1.tm_year + 1900, tm1.tm_mon + 1, tm1.tm_mday,
+            //         tm1.tm_hour, tm1.tm_min, tm1.tm_sec);
+            // info(m_time);
+            
+            n_send = send(sock_fd, response, strlen(response), 0);
+            n_send += sendfile(sock_fd, file_fd, 0, stat_buf.st_size);
+        }
+
+        debug("发送字节数n=%d", n_send);
+        if (n_send <= 0)
+        {
+            debug("发送了 %d bytes，关闭socket", n_send);
             close(sock_fd);
-            DeleteEpollEvent(epoll_fd, sock_fd, EPOLLIN);
+            DeleteEpollEvent(epollfd_, sock_fd, EPOLLIN);
         }
         else
         {
@@ -123,7 +160,7 @@ namespace mugix::server
 #pragma region 核心
 
     // 初始化mugix核心
-    bool SockerControler::Init()
+    bool SocketControler::Init()
     {
         // 读取配置
         mode_epoll_trig_listen_ = EPOLL_ET;
@@ -134,7 +171,7 @@ namespace mugix::server
     }
 
     // 启动监听
-    bool SockerControler::EventListen()
+    bool SocketControler::EventListen()
     {
         // 启动监听套接字
         server_listen_socketfd_ = socket(AF_INET, SOCK_STREAM, 0);
@@ -146,14 +183,14 @@ namespace mugix::server
         // addr.sin_addr.s_addr = htonl(INADDR_ANY);
         inet_pton(AF_INET, server_listen_ip_, &addr.sin_addr);
 
+        bool flag = true;
+        setsockopt(server_listen_socketfd_, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(bool)); //允许监听套接字重复使用，跳过time_wait(必须在bind之前使用)
+
         assert(bind(server_listen_socketfd_, (sockaddr *)&addr, sizeof(addr)) >= 0);
         assert(listen(server_listen_socketfd_, 1000) >= 0);
 
         // 输出客户端ip 端口
         info("开始监听，ip=%s,port=%d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
-
-        bool flag = true;
-        setsockopt(server_listen_socketfd_, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &flag, sizeof(bool)); //允许监听套接字重复使用，跳过time_wait
 
         //设置监听套接字非阻塞
         SetSocketNonBlock(server_listen_socketfd_);
@@ -175,7 +212,7 @@ namespace mugix::server
     }
 
     // 事件主循环
-    bool SockerControler::EventLoop()
+    bool SocketControler::EventLoop()
     {
         while (true)
         {
@@ -207,12 +244,12 @@ namespace mugix::server
                 //收到epoll写入事件
                 else if (events_[i].events & EPOLLIN)
                 {
-                    pool_.submit(ReadFromSocket, epollfd_, sockfd); //向线程池添加读任务
+                    pool_.submit(std::bind(&SocketControler::ReadFromSocket, this, sockfd)); //向线程池添加读任务
                 }
                 //收到epoll输出事件
                 else if (events_[i].events & EPOLLOUT)
                 {
-                    pool_.submit(WriteToSocket, epollfd_, sockfd); //向线程池添加写任务
+                    pool_.submit(std::bind(&SocketControler::WriteToSocket, this, sockfd)); //向线程池添加写任务
                     ModifyEpollEvent(epollfd_, sockfd, EPOLLIN | EPOLLONESHOT);
                 }
             }
@@ -221,7 +258,7 @@ namespace mugix::server
     }
 
     // 处理新到的连接
-    bool SockerControler::ProcessNewClient()
+    bool SocketControler::ProcessNewClient()
     {
         // 水平触发方式
         if (mode_epoll_trig_listen_ == EPOLL_LT)
@@ -278,7 +315,7 @@ namespace mugix::server
         return true;
     }
 
-    void SockerControler::run()
+    void SocketControler::run()
     {
         Init();
         EventListen();

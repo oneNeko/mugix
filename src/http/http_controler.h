@@ -7,16 +7,15 @@ using std::string;
 
 namespace mugix
 {
-    
-
-    //http控制类
+    // http控制类
     class HttpControler
     {
     private:
-        HttpHeader header_;
     public:
-        
+        //HttpHeader header_;
+        string response_header;
+        string url_;
     };
-} //namespace mugix
+} // namespace mugix
 
 #endif

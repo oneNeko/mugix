@@ -6,13 +6,13 @@ namespace mugix
     {
     }
 
-    HttpHeader::HttpHeader(string &header)
+    HttpHeader::HttpHeader(const string &header)
     {
         ParseHeader(header);
     }
 
     // 使用状态机解析http请求头
-    int HttpHeader::ParseHeader(string &header)
+    int HttpHeader::ParseHeader(const string &header)
     {
         int state = HEADER_START;
         int lpos = 0, rpos = 0;

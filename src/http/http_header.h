@@ -88,11 +88,11 @@ namespace mugix
             }
             return 0;
         }
-        int ParseHeader(string &header);
+        int ParseHeader(const string &header);
 
     public:
         HttpHeader();
-        HttpHeader(string &header);
+        HttpHeader(const string &header);
 
     public:
         int method_ = HTTP_METHOD_NOT_SUPPORT;   //http请求方法
