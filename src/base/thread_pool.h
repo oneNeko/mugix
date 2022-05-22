@@ -1,14 +1,62 @@
 #ifndef THREAD_POOL_H
-#define THREAD_H
+#define THREAD_POOL_H
 
 #include <condition_variable>
 #include <functional>
+#include <future>
 #include <mutex>
+#include <queue>
 #include <thread>
 #include <vector>
-#include <future>
 
-#include "safe_queue.h"
+template <typename T>
+class SafeQueue
+{
+private:
+    std::queue<T> queue_; //利用模板函数构造队列
+    std::mutex mutex_;    //访问互斥信号量
+
+public:
+    SafeQueue(){};
+    SafeQueue(SafeQueue &&other){};
+    ~SafeQueue(){};
+
+    bool empty()
+    {
+        std::unique_lock<std::mutex> lock(mutex_);
+        return queue_.empty();
+    }
+
+    int size()
+    {
+        std::unique_lock<std::mutex> lock(mutex_);
+        return queue_.size();
+    }
+
+    //队尾添加元素
+    void enqueue(T &t)
+    {
+        std::unique_lock<std::mutex> lock(mutex_);
+        queue_.emplace(t);
+    }
+
+    //队首取出元素
+    bool dequeue(T &t)
+    {
+        std::unique_lock<std::mutex> lock(mutex_);
+
+        if (queue_.empty())
+        {
+            return false;
+        }
+
+        t = std::move(queue_.front()); //取出队首元素，并进行右值引用
+
+        queue_.pop();
+
+        return true;
+    }
+};
 
 class ThreadPool
 {
@@ -26,7 +74,30 @@ private:
         void operator()()
         {
             std::function<void()> func;
-            bool is_dequeue_ing;
+            bool dequeued;
+
+            while (!pool_->is_shutdown_)
+            {
+                {
+                // 为线程环境加锁，互访问工作线程的休眠和唤醒
+                std::unique_lock<std::mutex> lock(pool_->conditional_mutex_);
+
+                // 如果任务队列为空，阻塞当前线程
+                if (pool_->queue_.empty())
+                {
+                    pool_->conditional_lock_.wait(lock); //等待条件变量通知，开启线程
+                }
+
+                //取出任务队列中的元素
+                dequeued = pool_->queue_.dequeue(func);
+                }
+                
+                //如果成功取出，执行工作函数
+                if (dequeued)
+                {
+                    func();
+                }
+            }
         }
     };
 
@@ -38,7 +109,7 @@ private:
     std::condition_variable conditional_lock_; //线程环境锁，可以让线程处于休眠或者唤醒状态
 
 public:
-    ThreadPool(const int num_threads = 4) : threads_(std::vector<std::thread>(num_threads)), is_shutdown_(false) {}
+    ThreadPool(const int num_threads = 8) : threads_(std::vector<std::thread>(num_threads)), is_shutdown_(false) {}
 
     ThreadPool(const ThreadPool &) = delete;
     ThreadPool(ThreadPool &&) = delete;
