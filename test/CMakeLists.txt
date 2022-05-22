@@ -9,12 +9,8 @@ SET(CMAKE_BUILD_TYPE "Debug")
 
 file(GLOB_RECURSE source_test_files ./*.cc)
 file(GLOB source_files 
-    "../server/utils/*.cc" 
-    "../server/http/*.cc" 
-    "../server/config/*.cc" 
-    "../server/log/*.cc" 
-    "../server/server/*.cc" 
-    "../server/routes/*.cc"
+    "../src/server/core/*.cc",
+    "../src/server/http/*.cc"
     )
 
 # 生成target文件
