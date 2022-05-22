@@ -12,9 +12,10 @@ namespace mugix
     {
     private:
     public:
-        //HttpHeader header_;
+        // HttpHeader header_;
         string response_header;
         string url_;
+        int n_bytes_file_already_sent = 0;
     };
 } // namespace mugix
 

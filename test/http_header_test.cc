@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 #define private public
 
-#include "../src/server/http/http_header.h"
-using namespace mugix::http;
+#include "../src/http/http_header.h"
+using namespace mugix;
 
 #pragma region ParseHeaderMap
 TEST(ParseHeaderMap_test, ParseHeaderMap_test_case0)
@@ -14,7 +14,7 @@ TEST(ParseHeaderMap_test, ParseHeaderMap_test_case0)
     ASSERT_EQ(hh.ParseHeaderMap("GET", http_methods_), GET);
     ASSERT_EQ(hh.ParseHeaderMap("POST", http_methods_), POST);
     ASSERT_EQ(hh.ParseHeaderMap("HEAD", http_methods_), HEAD);
-    //http版本
+    // http版本
     ASSERT_EQ(hh.ParseHeaderMap("HTTP/0.9", http_versions_), HTTP_VERSION_NOT_SUPPORT);
     ASSERT_EQ(hh.ParseHeaderMap("HTTP", http_versions_), HTTP_VERSION_NOT_SUPPORT);
     ASSERT_EQ(hh.ParseHeaderMap("HTTP/1.0", http_versions_), HTTP_10);

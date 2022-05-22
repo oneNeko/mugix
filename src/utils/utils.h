@@ -51,7 +51,10 @@ static std::string UrlDecode(const std::string &str)
     for (size_t i = 0; i < length; i++)
     {
         if (str[i] == '+')
-            strTemp += ' ';
+        {
+            // strTemp += ' ';
+            strTemp += '+';
+        }
         else if (str[i] == '%')
         {
             assert(i + 2 < length);
