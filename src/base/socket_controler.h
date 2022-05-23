@@ -47,7 +47,7 @@ namespace mugix::server
             ERROR_CORE_INIT = 0, //初始化错误
         };
 
-        int epollfd_;                           // epoll 文件描述符
+        int epoll_fd_;                           // epoll 文件描述符
         int mode_epoll_trig_listen_ = EPOLL_LT; //监听套接字触发方式
         int mode_epoll_trig_conn_ = EPOLL_LT;   //连接套接字触发方式
         int server_listen_socketfd_;            //监听套接字

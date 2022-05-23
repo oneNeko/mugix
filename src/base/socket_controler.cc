@@ -58,7 +58,11 @@ void ModifyEpollEvent(int epoll_fd, int fd, int state)
 void SetSocketNonBlock(int fd)
 {
     int flags = fcntl(fd, F_GETFL, 0);
-    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    int ret = fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    if (ret == -1)
+    {
+        warn("设置非阻塞失败，erron=%d,fd=%d", errno, fd);
+    }
 }
 
 #pragma endregion
@@ -69,7 +73,6 @@ namespace mugix::server
     // 从socket中读取数据后交由http层处理
     int SocketControler::ReadFromSocket(int sock_fd)
     {
-        debug("开始读取scoket缓冲区...");
         char buffer[2048];
         memset(buffer, 0, 2048);
         int n = recv(sock_fd, buffer, sizeof(buffer), 0);
@@ -78,29 +81,28 @@ namespace mugix::server
         {
             debug("n<0,关闭sockfd=%d", sock_fd);
             close(sock_fd);
-            DeleteEpollEvent(epollfd_, sock_fd, EPOLLIN);
+            DeleteEpollEvent(epoll_fd_, sock_fd, EPOLLIN);
         }
         else if (n == 0)
         {
             debug("n=0,关闭sockfd=%d", sock_fd);
             close(sock_fd);
-            DeleteEpollEvent(epollfd_, sock_fd, EPOLLIN);
+            DeleteEpollEvent(epoll_fd_, sock_fd, EPOLLIN);
         }
         else
         {
             info("接收到内容：%s", buffer);
 
             users_[sock_fd].http_controler_.url_ = HttpHeader(buffer).path_;
-            ModifyEpollEvent(epollfd_, sock_fd, EPOLLOUT | EPOLLONESHOT);
+            ModifyEpollEvent(epoll_fd_, sock_fd, EPOLLOUT | EPOLLONESHOT);
         }
-        debug("读取scoket缓冲区结束");
+
         return n;
     }
 
     // 向socket写入
     int SocketControler::WriteToSocket(int sock_fd)
     {
-        debug("开始发送数据到scoket缓冲区...");
         const char *header = "HTTP/1.1 %d OK\r\nServer: nginx/1.18.0 (Ubuntu)\r\nContent-Length:%d\r\n\r\n";
         std::string body = "404";
 
@@ -158,7 +160,7 @@ namespace mugix::server
                 else if (n_file_sent < 0 && errno == EAGAIN)
                 {
                     // 等待缓冲区变为不满事件时写入
-                    ModifyEpollEvent(epollfd_, sock_fd, EPOLLOUT | EPOLLONESHOT);
+                    ModifyEpollEvent(epoll_fd_, sock_fd, EPOLLOUT | EPOLLONESHOT);
                     break;
                 }
                 else
@@ -174,8 +176,6 @@ namespace mugix::server
             }
         }
 
-        debug("发送字节数n=%d", n_send);
-        debug("发送到scoket缓冲区结束");
         return 0;
     }
 
@@ -196,8 +196,13 @@ namespace mugix::server
     bool SocketControler::EventListen()
     {
         // 启动监听套接字
+        info("启动监听套接字...");
         server_listen_socketfd_ = socket(AF_INET, SOCK_STREAM, 0);
-        assert(server_listen_socketfd_ >= 0);
+        if (server_listen_socketfd_ < 0)
+        {
+            fatal("监听套接字绑定失败，errno=%s,erver_listen_socketfd_=%d", errno, server_listen_socketfd_);
+            exit(0);
+        }
 
         sockaddr_in addr;
         addr.sin_family = AF_INET;
@@ -205,11 +210,26 @@ namespace mugix::server
         // addr.sin_addr.s_addr = htonl(INADDR_ANY);
         inet_pton(AF_INET, server_listen_ip_, &addr.sin_addr);
 
-        bool flag = true;
-        setsockopt(server_listen_socketfd_, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(bool)); //允许监听套接字重复使用，跳过time_wait(必须在bind之前使用)
+        int ret = 0;
 
-        assert(bind(server_listen_socketfd_, (sockaddr *)&addr, sizeof(addr)) >= 0);
-        assert(listen(server_listen_socketfd_, 1000) >= 0);
+        int flag = 1;
+        //允许监听套接字重复使用，跳过time_wait(必须在bind之前使用)
+        ret = setsockopt(server_listen_socketfd_, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(int));
+        error("setsockopt:error=%d,ret=%d", errno, ret);
+
+        ret = bind(server_listen_socketfd_, (sockaddr *)&addr, sizeof(addr));
+        if (ret < 0)
+        {
+            fatal("监听套接字绑定失败，errno=%d，ret=%d", errno, ret);
+            exit(0);
+        }
+
+        listen(server_listen_socketfd_, 1000);
+        if (ret < 0)
+        {
+            fatal("监听套接字开启监听失败，errno=%d，ret=%d", errno, ret);
+            exit(0);
+        }
 
         // 输出客户端ip 端口
         info("开始监听，ip=%s,port=%d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
@@ -218,17 +238,20 @@ namespace mugix::server
         SetSocketNonBlock(server_listen_socketfd_);
 
         // 启动epoll
-        epollfd_ = epoll_create(5);
-        assert(epollfd_ >= 0);
+        epoll_fd_ = epoll_create(5);
+        if (epoll_fd_ < 0)
+        {
+            fatal("epoll 创建失败，errno=%d", errno);
+        }
 
         // 设置为边缘触发时，设置为oneshot模式，避免收不到持续信息
         if (mode_epoll_trig_listen_ == EPOLL_ET)
         {
-            AddEpollEvent(epollfd_, server_listen_socketfd_, EPOLLIN | EPOLLRDHUP | EPOLLONESHOT | mode_epoll_trig_listen_);
+            AddEpollEvent(epoll_fd_, server_listen_socketfd_, EPOLLIN | EPOLLRDHUP | EPOLLONESHOT | mode_epoll_trig_listen_);
         }
         else
         {
-            AddEpollEvent(epollfd_, server_listen_socketfd_, EPOLLIN | EPOLLRDHUP);
+            AddEpollEvent(epoll_fd_, server_listen_socketfd_, EPOLLIN | EPOLLRDHUP);
         }
         return true;
     }
@@ -238,10 +261,10 @@ namespace mugix::server
     {
         while (true)
         {
-            int number = epoll_wait(epollfd_, events_, k_MAX_EVENT_NUMBER, -1);
+            int number = epoll_wait(epoll_fd_, events_, k_MAX_EVENT_NUMBER, -1);
             if (number < 0 && errno != EINTR)
             {
-                // logger->fatal("epoll failure");
+                fatal("epoll failure,errno=%d", errno);
                 break;
             }
 
@@ -258,9 +281,8 @@ namespace mugix::server
                 //收到epoll断开或错误事件
                 else if (events_[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR))
                 {
-                    // logger->error("epoll client close");
                     debug("epoll 断开或错误，关闭socket,sockfd=%d", sockfd);
-                    DeleteEpollEvent(epollfd_, sockfd, EPOLLIN);
+                    DeleteEpollEvent(epoll_fd_, sockfd, EPOLLIN);
                     close(sockfd);
                 }
                 //收到epoll写入事件
@@ -272,7 +294,7 @@ namespace mugix::server
                 else if (events_[i].events & EPOLLOUT)
                 {
                     pool_.submit(std::bind(&SocketControler::WriteToSocket, this, sockfd)); //向线程池添加写任务
-                    ModifyEpollEvent(epollfd_, sockfd, EPOLLIN | EPOLLONESHOT);
+                    ModifyEpollEvent(epoll_fd_, sockfd, EPOLLIN | EPOLLONESHOT);
                 }
             }
         }
@@ -289,22 +311,19 @@ namespace mugix::server
             socklen_t client_addrlength = sizeof(client_address);
 
             int connfd = accept(server_listen_socketfd_, (struct sockaddr *)&client_address, &client_addrlength);
-
             if (connfd < 0)
             {
+                error("接收客户端连接失败");
                 return false;
             }
 
-            AddEpollEvent(epollfd_, connfd, EPOLLIN | EPOLLONESHOT);
+            AddEpollEvent(epoll_fd_, connfd, EPOLLIN | EPOLLONESHOT);
             SetSocketNonBlock(connfd);
 
             users_[connfd] = UserSocket(connfd, client_address, EPOLL_LT);
 
             // 输出客户端ip 端口
-            struct sockaddr_in addr;
-            socklen_t len = sizeof(addr);
-            getpeername(connfd, (struct sockaddr *)&addr, &len);
-            info("新客户端，ip=%s,port=%d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+            info("新客户端，ip=%s,port=%d", inet_ntoa(client_address.sin_addr), ntohs(client_address.sin_port));
         }
         // 边缘触发方式
         else
@@ -318,19 +337,17 @@ namespace mugix::server
 
                 if (connfd < 0)
                 {
-                    ModifyEpollEvent(epollfd_, server_listen_socketfd_, EPOLLIN | EPOLLET | EPOLLONESHOT);
+                    ModifyEpollEvent(epoll_fd_, server_listen_socketfd_, EPOLLIN | EPOLLET | EPOLLONESHOT);
+                    error("接收客户端连接失败");
                     return false;
                 }
 
-                AddEpollEvent(epollfd_, connfd, EPOLLIN | EPOLLONESHOT | EPOLLET);
+                AddEpollEvent(epoll_fd_, connfd, EPOLLIN | EPOLLONESHOT | EPOLLET);
                 SetSocketNonBlock(connfd);
                 users_[connfd] = UserSocket(connfd, client_address, EPOLL_LT);
 
                 // 输出客户端ip 端口
-                struct sockaddr_in addr;
-                socklen_t len = sizeof(addr);
-                getpeername(connfd, (struct sockaddr *)&addr, &len);
-                info("新客户端，ip=%s,port=%d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+                info("新客户端，ip=%s,port=%d", inet_ntoa(client_address.sin_addr), ntohs(client_address.sin_port));
             }
         }
 

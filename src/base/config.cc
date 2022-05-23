@@ -23,7 +23,11 @@ Config::Config()
     while (!config_stream.eof())
     {
         memset(line, 0, 1024);
-        config_stream.getline(line, 1024); 
+        config_stream.getline(line, 1024);
+
+        if(line[0]=='#'){
+            continue;
+        }
 
         std::string str(line);
         int pos = str.find('=');
