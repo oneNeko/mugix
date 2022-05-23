@@ -3,33 +3,23 @@ mugix 是由 C++ 编写的web服务器
 ## 编译运行
 ```
 // 编译
-mkdir build
-cd build
+mkdir /src/build
+cd /src/build
 cmake ..
-make install
-
-// 运行，默认监听50001
-// -p   端口
-// -d   网站根目录
-// -m   epoll触发模式(listenfd+connfd)
-// LT+LT LT+ET ET+LT ET+ET
-// 0     1     2     3
-// 
-// -l   日志级别(OFF,FATAL,ERROR,WARN,INFO,DEBUG,ALL)
-
-./build/mugix -p 50001 -d /home/neko/mugix/html/ -m 0 -l 4
+make
 ```
-## 架构
---| mugix  
------| app 应用  
------| server 服务器
---------| core 管理socket连接
---------| http 解析http请求，分发给对应app，最后响应http请求
---| test 单元测试  
+配置文件`mugix.cfg`
+```
+ip=0.0.0.0
+port=10001
+# html文件根目录
+root=/home/website/blog/_site/
+```
 
-## 目标
-实现高性能Web服务器，要求支持应用可拓展
-## 要求
-- [ ] 使用epoll(LT/ET)管理监听、连接套接字
-- [ ] 使用连接池处理任务
-- [ ] 使用状态机解析请求头
+## 架构
+--| src  
+-----| app 应用  
+-----| base 管理socket连接
+-----| http 解析http请求，分发给对应app，最后响应http请求
+-----| utils 工具
+--| test 单元测试  
