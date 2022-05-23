@@ -7,12 +7,16 @@
 
 int main(int argc, char *argv[])
 {
-	Logger::getLogger().setLogLevel(Logger::LALL);
 	Logger::getLogger().setFileName("mugix.log");
-
 	info("mugix start ...");
 
+#ifdef DEBUG
+	debug("mugix debug mode on")
+	Logger::getLogger().setLogLevel(Logger::LDEBUG);
+#else
+	Logger::getLogger().setLogLevel(Logger::LINFO);
 	daemon(1, 1);
+#endif
 
 	mugix::server::SocketControler sc(Config::GetConfig().ip_.c_str(), Config::GetConfig().port_);
 	sc.run();
